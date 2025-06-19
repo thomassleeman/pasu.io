@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id                    String    @id @default(cuid())
+  clerkId               String    @unique // Clerk user ID (formerly uid)
+  email                 String    @unique
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Related data
+  burnoutAssessments    BurnoutAssessment[]
+  exercises             Exercise[]
+  courses               Course[]
+  stressRatings         StressRating[]
+  journalEntries        JournalEntry[]
+  recommendedArticles   RecommendedArticle[]
+  
+  @@index([email])
+  @@index([clerkId])
+}
+
+// Burnout assessment data
+model BurnoutAssessment {
+  id           String   @id @default(cuid())
+  userId       String
+  assessmentKey String
+  createdAt    DateTime @default(now())
+  
+  // Store category scores as JSON
+  categoryScores Json   // Will store the category scores object
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, assessmentKey])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Exercise data
+model Exercise {
+  id                   String   @id @default(cuid())
+  userId               String
+  exerciseSlug         String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  completedPrompts     Int      @default(0)
+  completionPercentage Float    @default(0)
+  
+  // Store encrypted user inputs
+  encryptedUserInputs  ExerciseInput[]
+  
+  // Relations
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, exerciseSlug])
+  @@index([userId])
+}
+
+// Encrypted exercise inputs
+model ExerciseInput {
+  id             String   @id @default(cuid())
+  exerciseId     String
+  inputKey       String
+  encryptedData  String   @db.Text
+  iv             String
+  
+  // Relations
+  exercise       Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  
+  @@unique([exerciseId, inputKey])
+  @@index([exerciseId])
+}
+
+// Course data
+model Course {
+  id               String   @id @default(cuid())
+  userId           String
+  courseSlug       String
+  courseName       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modules          CourseModule[]
+  resourcesStatus  CourseResourceStatus[]
+  
+  @@unique([userId, courseSlug])
+  @@index([userId])
+}
+
+// Course modules
+model CourseModule {
+  id               String   @id @default(cuid())
+  courseId         String
+  moduleSlug       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  encryptedInputs  CourseModuleInput[]
+  
+  @@unique([courseId, moduleSlug])
+  @@index([courseId])
+}
+
+// Course module encrypted inputs
+model CourseModuleInput {
+  id             String       @id @default(cuid())
+  moduleId       String
+  inputId        String
+  encryptedData  String       @db.Text
+  iv             String
+  
+  // Relations
+  module         CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  @@unique([moduleId, inputId])
+  @@index([moduleId])
+}
+
+// Course resource completion status
+model CourseResourceStatus {
+  id           String   @id @default(cuid())
+  courseId     String
+  resourceName String
+  completed    Boolean  @default(false)
+  completedAt  DateTime?
+  
+  // Relations
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@unique([courseId, resourceName])
+  @@index([courseId])
+}
+
+// Recommended articles
+model RecommendedArticle {
+  id           String   @id @default(cuid())
+  userId       String
+  articleSlug  String
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, articleSlug])
+  @@index([userId])
+}
+
+// Stress ratings
+model StressRating {
+  id           String   @id @default(cuid())
+  userId       String
+  rating       Int
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Journal entries
+model JournalEntry {
+  id           String   @id @default(cuid())
+  userId       String
+  journalName  String
+  dateKey      String   // e.g., "2024-01-15"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputs       JournalEntryInput[]
+  
+  @@unique([userId, journalName, dateKey])
+  @@index([userId])
+  @@index([journalName])
+  @@index([dateKey])
+}
+
+// Journal entry encrypted inputs
+model JournalEntryInput {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  inputKey       String
+  encryptedData  String       @db.Text
+  iv             String
+  
+  // Relations
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  
+  @@unique([journalEntryId, inputKey])
+  @@index([journalEntryId])
+}

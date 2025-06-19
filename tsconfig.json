@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["app/_components/*"],
+      "@firebase/*": ["./firebase/*"],
+      "@hooks/*": ["app/hooks/*"],
+      "@state": ["app/state/*"],
+      "@chatbot/*": ["app/chatbot/*"],
+      "@types/*": ["./types/*"],
+      "@articles/*": ["app/articles/*"],
+      "@courses/*": ["app/courses/*"],
+      "@stories/*": ["app/burnout-stories/*"],
+      "@exercises/*": ["app/exercises/*"],
+      "@actions/*": ["app/actions/*"],
+      "@sanity/*": ["app/sanity/*"],
+      "@stripe/*": ["app/stripe/*"],
+      "@auth/*": ["app/(auth)/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "types/**/*.d.ts",
+    "app/admin/uploadArticle",
+    "app/api/uploadArticle",
+    "atoms/isAdminAtom.js",
+    "app/_components/studies/StudyModal.js",
+    "app/chatbot/burnout-assessment/page.jsx",
+    "pathGenerate.js"
+  ],
+  "exclude": ["node_modules", "functions"]
+}
