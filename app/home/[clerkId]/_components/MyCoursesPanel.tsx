@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { urlForImage } from "@/sanity/lib/image";
 import { AcademicCapIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
+import { type UserWithRelations } from "@/types/user";
 
 type SanityImage = {
   asset: {
@@ -16,20 +17,6 @@ type CourseData = {
   slug: string;
   headerImage: SanityImage;
   summary: any[];
-};
-
-type UserCourse = {
-  id: string;
-  courseSlug: string;
-  courseName: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  resourcesCompleted?: Record<string, boolean>; // Updated to match your data
-};
-
-type UserData = {
-  courses?: UserCourse[];
-  // ... other user properties
 };
 
 type Action = {
@@ -96,7 +83,7 @@ function CourseCard({ course }: { course: Action }) {
   );
 }
 
-async function MyCoursesPanel({ user }: { user: UserData }) {
+async function MyCoursesPanel({ user }: { user: UserWithRelations }) {
   console.log("courses:", user.courses);
   // Early return if user has no courses
   if (!user?.courses || user.courses.length === 0) {

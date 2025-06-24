@@ -55,12 +55,7 @@ export const exercises = pgTable("exercises", {
     .references(() => users.id, { onDelete: "cascade" }),
   exerciseSlug: text("exercise_slug").notNull(),
   completedPrompts: integer("completed_prompts").notNull().default(0),
-  completionPercentage: numeric("completion_percentage", {
-    precision: 5,
-    scale: 2,
-  })
-    .notNull()
-    .default("0"),
+  completionPercentage: integer("completion_percentage").notNull().default(0),
   encryptedUserInput: json("encrypted_user_input"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

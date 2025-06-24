@@ -3,21 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { urlForImage } from "@/sanity/lib/image";
 import { CheckBadgeIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
-import { Exercise } from "@/types/sanity";
-
-type UserExercise = {
-  id: string;
-  exerciseSlug: string;
-  completedPrompts: number;
-  completionPercentage: number;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-};
-
-type UserData = {
-  exercises?: UserExercise[];
-  // ... other user properties
-};
+import { type UserWithRelations } from "@/types/user";
 
 type Action = {
   icon: React.ElementType;
@@ -83,7 +69,7 @@ function ExerciseCard({ exercise }: { exercise: Action }) {
   );
 }
 
-async function MyExercisesPanel({ user }: { user: UserData }) {
+async function MyExercisesPanel({ user }: { user: UserWithRelations }) {
   // Early return if user has no exercises
   if (!user?.exercises || user.exercises.length === 0) {
     return (
@@ -171,7 +157,7 @@ async function MyExercisesPanel({ user }: { user: UserData }) {
         imageUrl: headerImageUrl,
       } as Action;
     })
-    .filter((exercise): exercise is Action => exercise !== null);
+    .filter((exercise: Action | null): exercise is Action => exercise !== null);
 
   return (
     <>
