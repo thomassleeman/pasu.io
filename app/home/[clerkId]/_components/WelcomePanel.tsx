@@ -2,10 +2,26 @@ import React from "react";
 import DynamicGreeting from "./DynamicGreeting";
 import { differenceInDays, parse } from "date-fns";
 import StressLevelComponent from "./StressLevelComponent";
+import type { User, JournalEntry, BurnoutAssessment } from "@db/schema";
 
-export default function WelcomePanel({ user }: { user: UserData }) {
-  // const user = useAtomValue(userAtom);
+// Define the user type with relations based on query structure
+type UserWithRelations = User & {
+  journalEntries: Pick<
+    JournalEntry,
+    "id" | "journalName" | "dateKey" | "createdAt" | "updatedAt"
+  >[];
+  burnoutAssessments: Pick<
+    BurnoutAssessment,
+    "id" | "userId" | "createdAt" | "assessment1" | "assessment2"
+  >[];
+  // ... other relations as needed
+};
 
+interface WelcomePanelProps {
+  user: UserWithRelations;
+}
+
+export default function WelcomePanel({ user }: WelcomePanelProps) {
   // Show loading skeleton while user data is not yet available
   if (!user) {
     return (
@@ -40,30 +56,51 @@ export default function WelcomePanel({ user }: { user: UserData }) {
     );
   }
 
-  const userDetails = user.providerData[0];
-  const firstName = userDetails.displayName?.split(" ")[0];
+  // Extract first name from email (you may want to add a firstName field to your users table)
+  const emailUsername = user.email.split("@")[0];
+  const firstName =
+    emailUsername.charAt(0).toUpperCase() +
+    emailUsername.slice(1).toLowerCase();
   const currentDate = new Date();
 
-  // Calculate "Member Since"
-  const accountCreationDate = new Date(user.createdAt?.seconds * 1000);
-  const memberSinceDays =
-    differenceInDays(currentDate, accountCreationDate) || null;
+  // Calculate "Member Since" - now using Drizzle Date object
+  const accountCreationDate = new Date(user.createdAt);
+  let memberSinceDays = 0;
 
-  // Calculate "Last Journal Entry"
+  // Check if the date is valid
+  if (!isNaN(accountCreationDate.getTime())) {
+    memberSinceDays = Math.max(
+      0,
+      differenceInDays(currentDate, accountCreationDate)
+    );
+  }
+
+  // Debug logging (remove after testing)
+  console.log("Account creation date:", accountCreationDate);
+  console.log("Current date:", currentDate);
+  console.log("Member since days:", memberSinceDays);
+
+  // Calculate "Last Journal Entry" - now using journalEntries array
   let lastJournalEntry = "No journal entries";
 
-  if (user.journaling) {
-    // Get all dates from all journals
-    const allDates = Object.values(user.journaling).flatMap((journal) =>
-      Object.keys(journal).map((dateStr) =>
-        parse(dateStr, "dd-MMM-yyyy", new Date())
-      )
-    );
+  if (user.journalEntries && user.journalEntries.length > 0) {
+    // Parse dateKey from journal entries (assuming format like "dd-MMM-yyyy")
+    const journalDates = user.journalEntries
+      .map((entry) => {
+        try {
+          // If dateKey is in format "dd-MMM-yyyy", parse it
+          return parse(entry.dateKey, "dd-MMM-yyyy", new Date());
+        } catch {
+          // Fallback to createdAt if dateKey parsing fails
+          return new Date(entry.createdAt);
+        }
+      })
+      .filter((date) => !isNaN(date.getTime())); // Filter out invalid dates
 
-    if (allDates.length > 0) {
+    if (journalDates.length > 0) {
       // Find the most recent journal entry date
       const lastJournalTimestamp = Math.max(
-        ...allDates.map((date) => date.getTime())
+        ...journalDates.map((date) => date.getTime())
       );
       const lastJournalDate = new Date(lastJournalTimestamp);
 
@@ -81,48 +118,13 @@ export default function WelcomePanel({ user }: { user: UserData }) {
     }
   }
 
-  // // Calculate "Last Journal Entry"
-  // const journalEntries = Object.keys(user.journaling || {});
-  // let lastJournalEntry = "No journal entries";
-  // console.log("journalEntries: ", journalEntries);
-
-  // if (journalEntries.length > 0) {
-  //   // Convert journal entry dates to Date objects
-  //   const journalDates = journalEntries.map((entry) =>
-  //     parse(entry, "dd-MMM-yyyy", new Date())
-  //   );
-
-  //   // Find the most recent journal entry date
-  //   const lastJournalTimestamp = Math.max(
-  //     ...journalDates.map((date) => date.getTime())
-  //   );
-  //   const lastJournalDate = new Date(lastJournalTimestamp);
-
-  //   const daysSinceLastJournal = differenceInDays(currentDate, lastJournalDate);
-
-  //   // Check if there is a journal entry for today
-  //   const isJournalToday = daysSinceLastJournal === 0;
-
-  //   lastJournalEntry = isJournalToday
-  //     ? "today"
-  //     : `${daysSinceLastJournal} days ago`;
-  // }
-
-  // Calculate "Last Check-in"
-  const burnoutAssessment = user.assessments?.burnoutAssessment;
+  // Calculate "Last Check-in" - now using burnoutAssessments array
   let lastCheckin = "No check-ins";
 
-  if (
-    burnoutAssessment &&
-    burnoutAssessment.createdAt &&
-    typeof burnoutAssessment.createdAt === "object" &&
-    "seconds" in burnoutAssessment.createdAt &&
-    "nanoseconds" in burnoutAssessment.createdAt
-  ) {
-    const lastAssessmentDate = new Date(
-      burnoutAssessment.createdAt.seconds * 1000 +
-        burnoutAssessment.createdAt.nanoseconds / 1e6
-    );
+  if (user.burnoutAssessments && user.burnoutAssessments.length > 0) {
+    // Get the most recent assessment (they're ordered by createdAt desc in the query)
+    const latestAssessment = user.burnoutAssessments[0];
+    const lastAssessmentDate = new Date(latestAssessment.createdAt);
     const daysSinceLastCheckin = differenceInDays(
       currentDate,
       lastAssessmentDate
@@ -132,12 +134,10 @@ export default function WelcomePanel({ user }: { user: UserData }) {
       daysSinceLastCheckin === 0 ? "today" : `${daysSinceLastCheckin} days ago`;
   }
 
-  // Update the stats object
   const stats = [
-    //whereas last journal entry and last assessment have fallback text, there is none for member for, so here we do a test to ensure there is a number available. If not we return an empty string.
     {
-      label: memberSinceDays ? "Member for" : "",
-      value: memberSinceDays ? `${memberSinceDays} days` : "",
+      label: "Member for",
+      value: `${memberSinceDays} days`,
     },
     { label: "Last journal entry", value: lastJournalEntry },
     { label: "Last assessment", value: lastCheckin },
@@ -155,7 +155,7 @@ export default function WelcomePanel({ user }: { user: UserData }) {
               <DynamicGreeting userName={firstName} />
             </div>
             <div className="mt-3 justify-center sm:mt-0">
-              <StressLevelComponent userId={user.uid} />
+              <StressLevelComponent userId={user.clerkId} />
             </div>
           </div>
         </div>

@@ -2,20 +2,9 @@
 
 import Image from "next/image";
 import brainLogo from "@/components/design/brainLogo.png";
-import ResourcesNav from "./_components/resourcesNav/NewResourcesNav";
-
-//clerk
-import {
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
+import AuthAndResourcesPanel from "./_components/AuthAndResourcesPanel";
 
 export default async function Nav() {
-  // const homeUrl = user?.uid ? `/home/${user.uid}` : "/signin";
-
   return (
     <nav className="shadow">
       <div className="mx-auto my-1 px-4 lg:px-8">
@@ -25,25 +14,7 @@ export default async function Nav() {
             src={brainLogo}
             alt="MindHub Logo"
           />
-          <div className="flex items-center gap-x-4 lg:gap-x-8">
-            <SignedOut>
-              <SignUpButton mode="modal">
-                <button className="lg:text-md text-sm font-medium text-green-700 underline underline-offset-4 hover:text-green-900">
-                  Sign up{" "}
-                  <span className="hidden lg:inline">for a free account</span>
-                </button>
-              </SignUpButton>
-              <SignInButton mode="modal">
-                <button className="rounded-lg border border-slate-600 bg-transparent px-2 py-1 text-xs text-slate-600">
-                  Sign In
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <ResourcesNav />
-              <UserButton />
-            </SignedIn>
-          </div>
+          <AuthAndResourcesPanel />
         </div>
       </div>
     </nav>

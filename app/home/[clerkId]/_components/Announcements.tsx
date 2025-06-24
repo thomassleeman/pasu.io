@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { MegaphoneIcon } from "@heroicons/react/24/outline";
-import {
-  getFirestore,
-  collection,
-  query,
-  orderBy,
-  getDocs,
-} from "firebase/firestore";
-import { adminInit } from "@/firebase/auth/adminConfig";
 import { Suspense } from "react";
 import AnnouncementsList from "./AnnouncementsList";
+import { db } from "@db/index";
+import { eq, desc } from "drizzle-orm";
+import type { User, BurnoutAssessment } from "@db/schema";
 
 // Define types
 type Announcement = {
@@ -20,54 +15,49 @@ type Announcement = {
   content: string;
 };
 
-type UserData = {
-  assessments?: {
-    burnoutAssessment?: {
-      createdAt?: {
-        seconds: number;
-        nanoseconds: number;
-      };
-    };
-  };
+// Define the user type with burnout assessments relation
+type UserWithAssessments = User & {
+  burnoutAssessments: Pick<
+    BurnoutAssessment,
+    "id" | "userId" | "createdAt" | "assessment1" | "assessment2"
+  >[];
 };
 
-// Fetch announcements from Firestore
+// TODO: Create announcements table in your Drizzle schema or move to CMS
+// For now, this is a placeholder that returns static announcements
+// You can either:
+// 1. Add an announcements table to your Drizzle schema
+// 2. Move announcements to your Sanity CMS
+// 3. Keep using Firebase just for announcements
 async function getAnnouncements(): Promise<Announcement[]> {
   try {
-    // Initialize Admin SDK for server component
-    adminInit();
-    const db = getFirestore();
-
-    const announcementsRef = collection(db, "announcements");
-    const q = query(announcementsRef, orderBy("createdAt", "desc"));
-
-    const querySnapshot = await getDocs(q);
-    const announcementsArray: Announcement[] = [];
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-
-      // Convert 'createdAt' to a JavaScript Date object
-      let createdAt = null;
-      if (data.createdAt && typeof data.createdAt.toDate === "function") {
-        createdAt = data.createdAt.toDate();
-      } else if (data.createdAt && typeof data.createdAt.seconds === "number") {
-        createdAt = new Date(data.createdAt.seconds * 1000);
-      }
-
-      // Convert Date object to ISO string for serialization between server and client
-      const announcement: Announcement = {
-        id: doc.id,
-        createdAt: createdAt ? createdAt.toISOString() : null,
-        href: data.href || "#", // Fallback to "#" if href is not available
-        title: data.title || "Announcement: ", // Fallback if title is missing
-        content: data.content || "", // Fallback to empty string if content is missing
-      };
-
-      announcementsArray.push(announcement);
+    // Option 1: If you create an announcements table in Drizzle:
+    /*
+    const announcements = await db.query.announcements.findMany({
+      orderBy: [desc(announcements.createdAt)],
     });
+    
+    return announcements.map(announcement => ({
+      id: announcement.id,
+      createdAt: announcement.createdAt.toISOString(),
+      href: announcement.href,
+      title: announcement.title,
+      content: announcement.content,
+    }));
+    */
 
-    return announcementsArray;
+    // Option 2: Static announcements for now (replace with your preferred solution)
+    const staticAnnouncements: Announcement[] = [
+      {
+        id: "welcome-announcement",
+        createdAt: new Date().toISOString(),
+        href: "/articles",
+        title: "Welcome to your dashboard!",
+        content: "Explore our articles and resources to get started.",
+      },
+    ];
+
+    return staticAnnouncements;
   } catch (error) {
     console.error("Error fetching announcements: ", error);
     return [];
@@ -76,23 +66,21 @@ async function getAnnouncements(): Promise<Announcement[]> {
 
 // Check if user needs a burnout assessment reminder
 function checkAssessmentReminder(
-  user: UserData | null,
+  user: UserWithAssessments | null,
   announcements: Announcement[]
 ): Announcement[] {
   if (!user) return announcements;
 
-  const burnoutAssessment = user?.assessments?.burnoutAssessment;
-  const lastAssessmentTimestamp = burnoutAssessment?.createdAt;
+  // Get the most recent burnout assessment
+  const latestAssessment =
+    user.burnoutAssessments && user.burnoutAssessments.length > 0
+      ? user.burnoutAssessments[0] // Assumes they're ordered by createdAt desc from your query
+      : null;
 
   let lastAssessmentDate: Date | null = null;
 
-  // Check the shape of `lastAssessmentTimestamp`
-  if (
-    lastAssessmentTimestamp &&
-    typeof lastAssessmentTimestamp === "object" &&
-    "seconds" in lastAssessmentTimestamp
-  ) {
-    lastAssessmentDate = new Date(lastAssessmentTimestamp.seconds * 1000);
+  if (latestAssessment) {
+    lastAssessmentDate = new Date(latestAssessment.createdAt);
   }
 
   const now = new Date();
@@ -112,7 +100,7 @@ function checkAssessmentReminder(
     // Add the announcement
     const newAnnouncement: Announcement = {
       id: "burnout-assessment-reminder",
-      createdAt: new Date().toISOString(), // Convert to ISO string
+      createdAt: new Date().toISOString(),
       href: "/chatbot/burnout-assessment",
       title: "It's time to take the Burnout Assessment again.",
       content: "Click here to go to our chatbot.",
@@ -131,7 +119,7 @@ function checkAssessmentReminder(
 export default async function Announcements({
   user,
 }: {
-  user: UserData | null;
+  user: UserWithAssessments | null;
 }) {
   // Fetch announcements
   const announcements = await getAnnouncements();

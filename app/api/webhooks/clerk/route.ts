@@ -1,52 +1,67 @@
-import { Webhook } from "svix";
-import { WebhookEvent } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
-import prisma from "@/lib/prisma";
+//Ngrok development command: ngrok http 3000. Make sure to update the webhook URL in Clerk dashboard to point to the ngrok URL.
 
-export async function POST(req: Request) {
-  const secret = process.env.SIGNING_SECRET;
+export const runtime = "edge";
+import { NextRequest } from "next/server";
+import { verifyWebhook } from "@clerk/nextjs/webhooks";
+import { db } from "../../../db/index";
+import { users } from "../../../db/schema";
+import { eq } from "drizzle-orm";
+
+export async function POST(req: NextRequest) {
+  const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
   if (!secret) return new Response("Missing secret", { status: 500 });
 
-  const wh = new Webhook(secret);
-  const body = await req.text();
-  const headerPayload = await headers();
-
-  const event = wh.verify(body, {
-    "svix-id": headerPayload.get("svix-id")!,
-    "svix-timestamp": headerPayload.get("svix-timestamp")!,
-    "svix-signature": headerPayload.get("svix-signature")!,
-  }) as WebhookEvent;
+  const event = await verifyWebhook(req);
 
   switch (event.type) {
     case "user.created": {
       const { id, email_addresses } = event.data;
-      await prisma.user.upsert({
-        where: { clerkId: id },
-        update: {},
-        create: {
+
+      if (!id || !email_addresses?.[0]?.email_address) {
+        return new Response("Invalid user data", { status: 400 });
+      }
+
+      await db
+        .insert(users)
+        .values({
           clerkId: id,
           email: email_addresses[0].email_address,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: users.clerkId,
+          set: {
+            email: email_addresses[0].email_address,
+            updatedAt: new Date(),
+          },
+        });
       break;
     }
 
     case "user.updated": {
       const { id, email_addresses } = event.data;
-      await prisma.user.update({
-        where: { clerkId: id },
-        data: {
+
+      if (!id || !email_addresses?.[0]?.email_address) {
+        return new Response("Invalid user data", { status: 400 });
+      }
+
+      await db
+        .update(users)
+        .set({
           email: email_addresses[0].email_address,
-        },
-      });
+          updatedAt: new Date(),
+        })
+        .where(eq(users.clerkId, id));
       break;
     }
 
     case "user.deleted": {
       const { id } = event.data;
-      await prisma.user.delete({
-        where: { clerkId: id },
-      });
+
+      if (!id) {
+        return new Response("Invalid user id", { status: 400 });
+      }
+
+      await db.delete(users).where(eq(users.clerkId, id));
       break;
     }
 

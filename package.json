@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "knip": "knip"
+    "knip": "knip",
+    "seed": "tsx user-seed-data.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.21.0",
@@ -16,8 +17,7 @@
     "@heroicons/react": "^2.0.18",
     "@mdx-js/loader": "^3.0.0",
     "@mdx-js/react": "^3.0.0",
-    "@prisma/client": "^6.9.0",
-    "@prisma/extension-accelerate": "^2.0.1",
+    "@neondatabase/serverless": "^1.0.1",
     "@sanity/asset-utils": "^2.2.1",
     "@sanity/image-url": "^1.1.0",
     "@stripe/stripe-js": "^4.6.0",
@@ -31,6 +31,7 @@
     "chartjs-adapter-date-fns": "^3.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^3.6.0",
+    "drizzle-orm": "^0.44.2",
     "encoding": "^0.1.13",
     "eslint": "8.41.0",
     "eslint-config-next": "^14.0.4",
@@ -41,7 +42,7 @@
     "jotai": "^2.2.1",
     "jwt-decode": "^4.0.0",
     "markdown-to-jsx": "^7.3.2",
-    "next": "^15.3.3",
+    "next": "^15.3.4",
     "next-sanity": "^9.12.0",
     "nextjs-toploader": "^1.6.12",
     "npm": "^9.9.3",
@@ -59,7 +60,6 @@
     "sharp": "^0.33.2",
     "stripe": "^16.12.0",
     "styled-components": "^6.1.8",
-    "svix": "^1.67.0",
     "tailwindcss": "3.3.2",
     "yup": "^1.2.0"
   },
@@ -67,10 +67,10 @@
     "@swc-jotai/react-refresh": "^0.0.8",
     "@tailwindcss/typography": "^0.5.9",
     "@types/node": "^22.15.30",
+    "drizzle-kit": "^0.31.1",
     "knip": "^5.60.2",
     "prettier": "^2.8.8",
     "prettier-plugin-tailwindcss": "^0.3.0",
-    "prisma": "^6.9.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }

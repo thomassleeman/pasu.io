@@ -18,18 +18,13 @@ type CourseData = {
   summary: any[];
 };
 
-type ResourceStatus = {
-  resourceName: string;
-  completed: boolean;
-};
-
 type UserCourse = {
   id: string;
   courseSlug: string;
   courseName: string;
   createdAt: Date | string;
   updatedAt: Date | string;
-  resourcesStatus?: ResourceStatus[];
+  resourcesCompleted?: Record<string, boolean>; // Updated to match your data
 };
 
 type UserData = {
@@ -102,6 +97,7 @@ function CourseCard({ course }: { course: Action }) {
 }
 
 async function MyCoursesPanel({ user }: { user: UserData }) {
+  console.log("courses:", user.courses);
   // Early return if user has no courses
   if (!user?.courses || user.courses.length === 0) {
     return (
@@ -146,24 +142,31 @@ async function MyCoursesPanel({ user }: { user: UserData }) {
 
       if (!userCourse) return null;
 
-      // Calculate progress from resourcesStatus
+      // Calculate progress from resourcesCompleted object
       let progressInfo = undefined;
-      if (userCourse.resourcesStatus && userCourse.resourcesStatus.length > 0) {
-        const totalResources = userCourse.resourcesStatus.length;
-        const completedResources = userCourse.resourcesStatus.filter(
-          (resource) => resource.completed
-        ).length;
-        const percentage = Math.round(
-          (completedResources / totalResources) * 100
-        );
+      if (userCourse.resourcesCompleted) {
+        const resourceEntries = Object.entries(userCourse.resourcesCompleted);
+        const totalResources = resourceEntries.length;
 
-        // Only include courses with progress > 0
-        if (percentage === 0) return null;
+        if (totalResources > 0) {
+          const completedResources = resourceEntries.filter(
+            ([_, completed]) => completed
+          ).length;
+          const percentage = Math.round(
+            (completedResources / totalResources) * 100
+          );
 
-        progressInfo = {
-          percentage,
-          isComplete: percentage === 100,
-        };
+          // Only include courses with progress > 0
+          if (percentage === 0) return null;
+
+          progressInfo = {
+            percentage,
+            isComplete: percentage === 100,
+          };
+        } else {
+          // No resources tracked, don't show this course
+          return null;
+        }
       } else {
         // No resources tracked, don't show this course
         return null;

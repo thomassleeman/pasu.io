@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { urlForImage } from "@/sanity/lib/image";
 import { CheckBadgeIcon, BriefcaseIcon } from "@heroicons/react/24/outline";
+import { Exercise } from "@/types/sanity";
 
 type UserExercise = {
   id: string;

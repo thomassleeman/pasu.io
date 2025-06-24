@@ -1,26 +1,23 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+// ensure that the /api/webhooks(.*) route is set as public.
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-export default clerkMiddleware({
-  // publicRoutes: ["/", "/signin", "/signup"],
-  // afterAuth(auth, req, evt) {
-  //   const { userId } = auth;
-  //   const { pathname } = req.nextUrl;
-  //   // Handle post-authentication redirects
-  //   if (userId) {
-  //     // If user is signed in and accessing auth pages, redirect to home
-  //     if (pathname === "/signin" || pathname === "/signup") {
-  //       return NextResponse.redirect(new URL(`/home/${userId}`, req.url));
-  //     }
-  //     // If accessing generic /home, redirect to their specific page
-  //     if (pathname === "/home") {
-  //       return NextResponse.redirect(new URL(`/home/${userId}`, req.url));
-  //     }
-  //   }
-  //   // If not signed in and accessing protected routes
-  //   if (!userId && pathname.startsWith("/home/")) {
-  //     return NextResponse.redirect(new URL("/signin", req.url));
-  //   }
-  // },
+const isPublicRoute = createRouteMatcher(["/", "/api/webhooks(.*)"]);
+
+export default clerkMiddleware(async (auth, req, evt) => {
+  const { pathname } = req.nextUrl;
+
+  if (isPublicRoute(req)) {
+    return;
+  }
+
+  const authResult = await auth.protect();
+
+  const userId = authResult.userId;
+
+  if (pathname === "/home") {
+    return NextResponse.redirect(new URL(`/home/${userId}`, req.url));
+  }
 });
 
 export const config = {

@@ -1,60 +1,41 @@
-export interface UserData {
-  id: string;
-  clerkId: string;
-  email: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+import {
+  type User,
+  type JournalEntry,
+  type Course,
+  type Exercise,
+  type StressRating,
+  type BurnoutAssessment,
+  type RecommendedArticle,
+} from "@db/schema";
 
-  journalEntries?: JournalEntry[];
-  courses?: Course[];
-  exercises?: Exercise[];
-  stressRatings?: StressRating[];
-  burnoutAssessments?: BurnoutAssessment[];
-  recommendedArticles?: RecommendedArticle[];
-}
-
-export interface JournalEntry {
-  id: string;
-  journalName: string;
-  dateKey: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  encryptedUserInput?: any; // Add specific type if needed
-}
-
-export interface Course {
-  id: string;
-  courseSlug: string;
-  courseName: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  resourcesCompleted?: Record<string, boolean>;
-}
-
-export interface Exercise {
-  id: string;
-  exerciseSlug: string;
-  completedPrompts: number;
-  completionPercentage: number;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  encryptedUserInput?: any; // Add specific type if needed
-}
-
-export interface StressRating {
-  id: string;
-  rating: number;
-  createdAt: Date | string;
-}
-
-export interface BurnoutAssessment {
-  id: string;
-  assessmentKey: string;
-  categoryScores: Record<string, number>;
-  createdAt: Date | string;
-}
-
-export interface RecommendedArticle {
-  articleSlug: string;
-  createdAt: Date | string;
-}
+// This is based on the query used in the home page.
+export type UserWithRelations = User & {
+  journalEntries: Pick<
+    JournalEntry,
+    "id" | "journalName" | "dateKey" | "createdAt" | "updatedAt"
+  >[];
+  courses: Pick<
+    Course,
+    | "id"
+    | "courseSlug"
+    | "courseName"
+    | "resourcesCompleted"
+    | "createdAt"
+    | "updatedAt"
+  >[];
+  exercises: Pick<
+    Exercise,
+    | "id"
+    | "exerciseSlug"
+    | "completedPrompts"
+    | "completionPercentage"
+    | "createdAt"
+    | "updatedAt"
+  >[];
+  stressRatings: Pick<StressRating, "id" | "rating" | "createdAt">[];
+  burnoutAssessments: Pick<
+    BurnoutAssessment,
+    "id" | "userId" | "createdAt" | "assessment1" | "assessment2"
+  >[];
+  recommendedArticles: Pick<RecommendedArticle, "articleSlug" | "createdAt">[];
+};

@@ -1,8 +1,13 @@
+import { type UserWithRelations } from "@/types/user";
+
 import MyCoursesPanel from "./MyCoursesPanel";
 import MyExercisesPanel from "./MyExercisesPanel";
-import { UserData } from "@/types/user";
 
-export default function CurrentActivityPanels({ user }: { user: UserData }) {
+export default function CurrentActivityPanels({
+  user,
+}: {
+  user: UserWithRelations;
+}) {
   return (
     <section aria-labelledby="quick-links-title">
       <h2 id="quick-links-title" className="sr-only">
