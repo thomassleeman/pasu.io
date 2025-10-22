@@ -25,9 +25,9 @@ const martel = Martel({
 export default async function DocumentPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
   const articleData = await getDocumentData(slug);
 
   if (!articleData) notFound();

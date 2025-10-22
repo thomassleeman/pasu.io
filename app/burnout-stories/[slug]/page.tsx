@@ -30,9 +30,9 @@ const martel = Martel({
 export default async function Article({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
   const storyData = await getBurnoutStoryData(slug);
 
   // const articleData = await getArticleData(slug);

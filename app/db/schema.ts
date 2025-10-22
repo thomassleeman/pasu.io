@@ -43,6 +43,7 @@ export const courses = pgTable("courses", {
   resourcesCompleted: json("resources_completed")
     .$type<Record<string, boolean>>()
     .default({}),
+  encryptedUserInput: json("encrypted_user_input"), // Stores per-resource encrypted data for self-reflections
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -2,9 +2,8 @@
 
 import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
-// Firebase imports
-import { app } from "@firebase/auth/appConfig";
-import { doc, getFirestore, setDoc, getDoc } from "firebase/firestore";
+// Server actions
+import { getCourseProgress, updateCourseProgress } from "@actions/userDataActions";
 //components
 import AuthNoticeModal from "@/app/_components/ui/modal/AuthNoticeModal";
 // Headless UI imports
@@ -28,7 +27,7 @@ export default function GetStartedButton({
   const [hasProgress, setHasProgress] = useState(false);
   const [firstUncompletedResource, setFirstUncompletedResource] =
     useState<CourseResourceSanity | null>(null);
-  const [userID, setUserID] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [
     showContinueWhereYourLeftOffModal,
     setshowContinueWhereYourLeftOffModal,
@@ -39,36 +38,10 @@ export default function GetStartedButton({
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Fetch the user ID from your API
-        const response = await fetch("/api/accessUserId", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Get existing course progress from Drizzle
+        const existingCourse = await getCourseProgress(courseSlug);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        const userID = result.userID;
-        setUserID(userID);
-
-        const db = getFirestore(app);
-        const userRef = doc(db, "users", userID);
-
-        // Fetch the existing user data
-        const userDoc = await getDoc(userRef);
-        // Use a safe default so courses is never undefined
-        const existingCourses = userDoc.exists()
-          ? userDoc.data().courses ?? {}
-          : {};
-
-        // Use optional chaining to avoid reading a property
-        // of an undefined object
-        const existingResourcesCompleted =
-          existingCourses[courseSlug]?.resourcesCompleted ?? {};
+        const existingResourcesCompleted = existingCourse?.resourcesCompleted ?? {};
 
         // Determine if user has progress
         const completedResources = Object.values(
@@ -80,7 +53,7 @@ export default function GetStartedButton({
         }
 
         // Merge new resources with existing ones without overwriting completed statuses
-        const resourcesCompleted = { ...existingResourcesCompleted };
+        const resourcesCompleted: Record<string, boolean> = { ...existingResourcesCompleted };
         resources.forEach((resource) => {
           if (!(resource.slug in resourcesCompleted)) {
             resourcesCompleted[resource.slug] = false;
@@ -88,20 +61,11 @@ export default function GetStartedButton({
         });
 
         // Update the user's courses data in the database
-        const courseData = {
-          [courseSlug]: {
-            courseName: title,
-            resourcesCompleted: resourcesCompleted,
-          },
-        };
-
-        await setDoc(
-          userRef,
-          {
-            courses: courseData,
-          },
-          { merge: true }
-        );
+        await updateCourseProgress({
+          courseSlug,
+          courseName: title,
+          resourcesCompleted,
+        });
 
         // Determine the first uncompleted resource
         let firstUncompleted = null;
@@ -120,6 +84,11 @@ export default function GetStartedButton({
         setFirstUncompletedResource(firstUncompleted);
       } catch (error) {
         console.error("Error:", (error as Error).message);
+        // If we get an "Unauthorized" error, user is not authenticated
+        if ((error as Error).message.includes('Unauthorized')) {
+          setIsAuthenticated(false);
+          setshowAuthModal(true);
+        }
       }
     };
 
@@ -136,7 +105,7 @@ export default function GetStartedButton({
     setIsUpdating(true);
 
     try {
-      if (!userID || !firstUncompletedResource) {
+      if (!isAuthenticated || !firstUncompletedResource) {
         console.log("Failed to retrieve user data. Please try again.");
         setshowAuthModal(true);
         return;

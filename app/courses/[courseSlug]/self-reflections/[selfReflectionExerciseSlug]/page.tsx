@@ -13,9 +13,9 @@ export const revalidate = 3600; // revalidate the data cache at most every hour
 export default async function SelfReflectionExercise({
   params,
 }: {
-  params: { courseSlug: string; selfReflectionExerciseSlug: string };
+  params: Promise<{ courseSlug: string; selfReflectionExerciseSlug: string }>;
 }) {
-  const { courseSlug, selfReflectionExerciseSlug } = params;
+  const { courseSlug, selfReflectionExerciseSlug } = await params;
   const exerciseData = await getSelfReflectionData(selfReflectionExerciseSlug);
 
   if (!exerciseData) notFound();

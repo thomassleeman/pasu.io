@@ -7,18 +7,18 @@
 
 export const UI_FLAGS = {
   // Journaling features
-  useNewJournalTextArea: false,      // Auto-expanding textarea, character count, better UX
-  useNewJournalCalendar: false,      // Improved date selection and visual indicators
-  useNewJournalLayout: false,        // Typography and spacing improvements
+  useNewJournalTextArea: true, // Auto-expanding textarea, character count, better UX
+  useNewJournalCalendar: true, // Improved date selection and visual indicators
+  useNewJournalLayout: true, // Typography and spacing improvements
 
   // Writing exercises features
-  useNewWritingExerciseForm: false,  // Enhanced form with progress tracking
-  useNewWritingExerciseLayout: false, // Better mobile responsiveness
+  useNewWritingExerciseForm: true, // Enhanced form with progress tracking
+  useNewWritingExerciseLayout: true, // Better mobile responsiveness
 
   // Global improvements
-  useNewProgressTracking: false,     // Visual progress bars and milestones
-  useNewSidebarNav: false,           // Mobile-friendly navigation
-  useNewCardLayout: false,           // Grid instead of horizontal scroll
+  useNewProgressTracking: true, // Visual progress bars and milestones
+  useNewSidebarNav: true, // Mobile-friendly navigation
+  useNewCardLayout: true, // Grid instead of horizontal scroll
 } as const;
 
 export type UIFlag = keyof typeof UI_FLAGS;

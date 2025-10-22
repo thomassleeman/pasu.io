@@ -37,9 +37,9 @@ const martel = Martel({
 export default async function Course({
   params,
 }: {
-  params: { courseSlug: string };
+  params: Promise<{ courseSlug: string }>;
 }) {
-  const { courseSlug } = params;
+  const { courseSlug } = await params;
 
   const courseData = await getCourseData(courseSlug, "page");
   if (!courseData) notFound();

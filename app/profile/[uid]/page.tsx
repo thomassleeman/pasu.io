@@ -7,7 +7,7 @@ import ProfileContent from "./ProfileContent";
 import Loading from "./loading";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-export default function ProfilePage({ params }: { params: { uid: string } }) {
+export default function ProfilePage({ params }: { params: Promise<{ uid: string }> }) {
   return (
     <ErrorBoundary
       fallback={
@@ -23,7 +23,8 @@ export default function ProfilePage({ params }: { params: { uid: string } }) {
   );
 }
 
-async function ProfilePageContent({ params }: { params: { uid: string } }) {
+async function ProfilePageContent({ params }: { params: Promise<{ uid: string }> }) {
+  const { uid } = await params;
   // Server-side auth verification
   const authUser = await verifyAuth({ returnClaims: true });
 
@@ -32,16 +33,16 @@ async function ProfilePageContent({ params }: { params: { uid: string } }) {
   }
 
   // Check if user is viewing their own profile
-  if (authUser.uid !== params.uid) {
+  if (authUser.uid !== uid) {
     redirect(`/profile/${authUser.uid}`);
   }
 
   // Fetch Firestore user data
-  const firestoreUser = await getFirestoreUser(params.uid);
+  const firestoreUser = await getFirestoreUser(uid);
 
   if (!firestoreUser) {
     throw new Error("User data not found");
   }
 
-  return <ProfileContent firestoreUser={firestoreUser} userId={params.uid} />;
+  return <ProfileContent firestoreUser={firestoreUser} userId={uid} />;
 }

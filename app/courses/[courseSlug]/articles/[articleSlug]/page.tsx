@@ -31,15 +31,16 @@ export default async function Article({
   params,
   searchParams,
 }: {
-  params: { articleSlug: string };
-  searchParams: Record<string, string> | null | undefined;
+  params: Promise<{ articleSlug: string }>;
+  searchParams: Promise<Record<string, string> | null | undefined>;
 }) {
-  const { articleSlug } = params;
+  const { articleSlug } = await params;
   const articleData = await getArticleData(articleSlug);
 
   //Show Modal if searchParams has modal=true
-  const showModal = searchParams?.modal;
-  const study = searchParams?.study;
+  const resolvedSearchParams = await searchParams;
+  const showModal = resolvedSearchParams?.modal;
+  const study = resolvedSearchParams?.study;
   //Current url is passed to modal to enable the close button to link back to the article without the modal
   const currentUrl = `${
     process.env.NODE_ENV === "production"

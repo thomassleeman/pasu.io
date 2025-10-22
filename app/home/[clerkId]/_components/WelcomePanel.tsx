@@ -155,7 +155,7 @@ export default function WelcomePanel({ user }: WelcomePanelProps) {
               <DynamicGreeting userName={firstName} />
             </div>
             <div className="mt-3 justify-center sm:mt-0">
-              <StressLevelComponent userId={user.clerkId} />
+              <StressLevelComponent />
             </div>
           </div>
         </div>

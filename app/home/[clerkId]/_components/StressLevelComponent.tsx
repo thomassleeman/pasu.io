@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { db } from "@/firebase/auth/appConfig"; // Adjust import based on your Firebase setup
-import { doc, updateDoc, getDoc, Timestamp } from "firebase/firestore";
+import { createStressRating } from "@actions/userDataActions";
 import {
   Description,
   Dialog,
@@ -19,12 +18,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 
-type Rating = {
-  createdAt: Timestamp;
-  rating: number;
-};
-
-const StressLevelComponent = ({ userId }: { userId: string }) => {
+const StressLevelComponent = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [submissionMessage, setSubmissionMessage] = useState<string | null>(
@@ -37,38 +31,17 @@ const StressLevelComponent = ({ userId }: { userId: string }) => {
 
   const handleSubmit = async () => {
     if (selectedLevel === null) {
-      // Optionally, show an error message here
+      setSubmissionMessage("Please select a stress level.");
       return;
     }
 
-    const userRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userRef);
-    const stressRating: Rating[] = userDoc.data()?.stressRating || [];
-
-    // Today's date at midnight
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Remove any entries from today
-    const updatedStressRating = stressRating.filter((rating: Rating) => {
-      const ratingDate = rating.createdAt.toDate();
-      ratingDate.setHours(0, 0, 0, 0);
-      return ratingDate.getTime() !== today.getTime();
-    });
-
-    // Add the new rating
-    updatedStressRating.push({
-      createdAt: Timestamp.now(),
-      rating: selectedLevel,
-    });
-
-    // Update the user document
-    await updateDoc(userRef, {
-      stressRating: updatedStressRating,
-    });
-
-    // Show submission message
-    setSubmissionMessage("Your stress level has been recorded.");
+    try {
+      await createStressRating(selectedLevel);
+      setSubmissionMessage("Your stress level has been recorded.");
+    } catch (error) {
+      console.error("Error recording stress level:", error);
+      setSubmissionMessage("Failed to record stress level. Please try again.");
+    }
   };
 
   const getColor = (level: number) => {

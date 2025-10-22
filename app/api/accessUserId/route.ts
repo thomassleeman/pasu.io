@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Init the Firebase SDK every time the server is called
 adminInit();
 
-export async function POST(request: NextRequest, response: NextResponse) {
+export async function POST(request: NextRequest) {
   //get session coookie
   const session = request.cookies.get("session");
   const sessionCookie = session?.value;

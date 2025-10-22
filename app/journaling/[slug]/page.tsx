@@ -11,18 +11,20 @@ import { urlForImage } from "@/sanity/lib/image";
 import portableTextComponents from "@/sanity/schemas/portableText/portableTextComponents";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export const revalidate = 3600; // revalidate the data cache at most every hour
 
 export default async function JournalingPage({ params }: PageProps) {
+  const { slug } = await params;
+
   // Fetch journal data from Sanity
   let journalOutline: journalOutlineFromSanity | null = null;
   try {
-    journalOutline = await getJournalData(params.slug);
+    journalOutline = await getJournalData(slug);
   } catch (error) {
     console.error("Error fetching journal data:", error);
   }
@@ -48,7 +50,7 @@ export default async function JournalingPage({ params }: PageProps) {
           Sorry, we couldn&apos;t find the journal template you&apos;re looking
           for.
         </p>
-        <p>Requested slug: {params.slug}</p>
+        <p>Requested slug: {slug}</p>
       </article>
     );
   }

@@ -16,9 +16,9 @@ export const revalidate = 3600; // revalidate the data cache at most every hour
 export default async function WritingExercisePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
   const exerciseData = await getWritingExerciseData(slug);
 
   if (!exerciseData) notFound();

@@ -1,6 +1,5 @@
 //Ngrok development command: ngrok http 3000. Make sure to update the webhook URL in Clerk dashboard to point to the ngrok URL.
 
-export const runtime = "edge";
 import { NextRequest } from "next/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { db } from "../../../db/index";

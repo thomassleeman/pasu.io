@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 adminInit();
 
-export async function POST(request: NextRequest, response: NextResponse) {
+export async function POST(request: NextRequest) {
   //get session coookie
   const session = request.cookies.get("session");
   const sessionCookie = session?.value;

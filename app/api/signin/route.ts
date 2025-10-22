@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 adminInit();
 
 /* POST */
-export async function POST(request: NextRequest, response: NextResponse) {
+export async function POST(request: NextRequest) {
   try {
     const authorization = headers().get("Authorization");
     if (authorization?.startsWith("Bearer ")) {

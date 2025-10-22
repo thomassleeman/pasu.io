@@ -4,9 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 //next
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-//firebase
-import { app } from "@firebase/auth/appConfig";
-import { doc, getFirestore, getDoc } from "firebase/firestore";
 //Sanity
 import { PortableText } from "@portabletext/react";
 import portableTextComponents from "@/sanity/schemas/portableText/portableTextComponents";
@@ -15,7 +12,7 @@ import { SubmitButton } from "@/app/_components/ui/_components/Buttons";
 //functions
 import updateDatabase from "./updateDatabase";
 //actions
-import getFormattedDate from "@actions/getFormattedDate";
+import { getCourseResourceData } from "@actions/userDataActions";
 //Image
 import logo from "@/components/design/brainLogoCompressed.png";
 //types
@@ -73,44 +70,22 @@ export default function TextAreaForm({
       setLoading(true);
 
       try {
-        const db = getFirestore(app);
-        const response = await fetch("/api/accessUserId", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+        // Get resource data from Drizzle
+        const resourceData = await getCourseResourceData(courseSlug, exerciseSlug);
+
+        if (!resourceData || !resourceData.encryptedUserInput) {
+          setLoading(false);
+          return;
+        }
+
+        const encryptedUserInputs = resourceData.encryptedUserInput;
+
+        // Format the date
+        const previousInputDate = new Date(resourceData.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
         });
-
-        if (!response.ok) {
-          router.push("/signin");
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        const userDoc = doc(db, "users", result.userID);
-        const docSnap = await getDoc(userDoc);
-
-        if (!docSnap.exists()) {
-          setLoading(false);
-          return;
-        }
-
-        const data = docSnap.data();
-        if (!data) {
-          setLoading(false);
-          return;
-        }
-
-        const previousInput = data.courses[courseSlug][exerciseSlug];
-        if (!previousInput) {
-          setLoading(false);
-          return;
-        }
-
-        const previousInputDate = getFormattedDate(
-          previousInput.createdAt.seconds
-        );
-        const encryptedUserInputs = previousInput.encryptedUserInput;
 
         // Collect all encrypted inputs into an array
         const encryptedInputsArray = Object.keys(encryptedUserInputs).map(
@@ -155,6 +130,10 @@ export default function TextAreaForm({
         setLoading(false);
       } catch (error) {
         console.error("Error fetching or decrypting previous input:", error);
+        // If unauthorized, might need to redirect to sign-in
+        if ((error as Error).message.includes('Unauthorized')) {
+          router.push("/sign-in");
+        }
         setLoading(false);
       }
     }
