@@ -1,10 +1,11 @@
-// JournalTextAreaForm.tsx - Modified version
+// JournalTextAreaForm.tsx - Improved UI version
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { serverTimestamp, Timestamp } from "firebase/firestore";
-import { format } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { SubmitButton } from "@/app/_components/ui/_components/Buttons";
+import { ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import getFormattedDate from "@actions/getFormattedDate";
 import logo from "@/components/design/brainLogoCompressed.png";
 import updateDatabase from "./updateDatabase";
@@ -20,6 +21,51 @@ import {
 import { PortableText } from "@portabletext/react";
 import portableTextComponents from "@/sanity/schemas/portableText/portableTextComponents";
 
+// Auto-expanding textarea component
+const AutoExpandTextarea = ({
+  value,
+  onChange,
+  id,
+  name,
+  promptKey
+}: {
+  value: string;
+  onChange: (key: string, value: string) => void;
+  id: string;
+  name: string;
+  promptKey: string;
+}) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wordCount = value ? value.trim().split(/\s+/).filter(Boolean).length : 0;
+  const charCount = value ? value.length : 0;
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <textarea
+        ref={textareaRef}
+        id={id}
+        name={name}
+        className="min-h-32 w-full rounded-lg border-0 p-3 shadow-sm ring-2 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-600 resize-none overflow-hidden"
+        value={value}
+        onChange={(e) => onChange(promptKey, e.target.value)}
+        placeholder="Write your thoughts here..."
+        rows={4}
+      />
+      <div className="mt-1 flex justify-between text-xs text-gray-500">
+        <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
+        <span>{charCount} characters</span>
+      </div>
+    </div>
+  );
+};
+
 export default function JournalTextAreaForm({
   selectedDate,
   setSelectedDate,
@@ -34,9 +80,24 @@ export default function JournalTextAreaForm({
   const [previousInputData, setPreviousInputData] = useState<PreviousInputData>(
     {}
   );
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   const formattedDate = format(selectedDate, "dd-MMM-yyyy");
   const journalSlug = journalOutlineFromSanity?.slug;
+
+  // Calculate progress
+  const totalPrompts = journalOutlineFromSanity?.promptCategories.reduce(
+    (acc, category) => acc + category.prompts.length,
+    0
+  ) || 0;
+
+  const completedPrompts = Object.values(userInputs).filter(
+    (value) => value && value.trim().length > 0
+  ).length;
+
+  const progressPercentage = totalPrompts > 0
+    ? Math.round((completedPrompts / totalPrompts) * 100)
+    : 0;
 
   // If journalSlug is undefined, we can't proceed with loading data
   useEffect(() => {
@@ -186,6 +247,7 @@ export default function JournalTextAreaForm({
 
       setSubmitted(true);
       setLoading(false);
+      setLastSaved(new Date().toLocaleTimeString());
 
       // Update the local journalData state to reflect the new entry
       // with the correct nested structure
@@ -210,6 +272,21 @@ export default function JournalTextAreaForm({
       setLoading(false);
     }
   };
+
+  // Date navigation helpers
+  const handlePreviousDate = () => {
+    setSelectedDate(subDays(selectedDate, 1));
+  };
+
+  const handleNextDate = () => {
+    const nextDate = addDays(selectedDate, 1);
+    const today = new Date();
+    if (nextDate <= today) {
+      setSelectedDate(nextDate);
+    }
+  };
+
+  const isToday = format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
   /* scroll on submission */
   const submissionNoticeRef = useRef<HTMLDivElement>(null);
@@ -268,36 +345,69 @@ export default function JournalTextAreaForm({
     } else {
       content = (
         <div>
-          <form onSubmit={handleSubmit}>
+          {/* Progress indicator */}
+          {totalPrompts > 0 && completedPrompts > 0 && (
+            <div className="mb-6 rounded-lg bg-emerald-50 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-sm font-medium text-emerald-900">
+                  <CheckCircleIcon className="h-5 w-5" />
+                  Progress: {completedPrompts} of {totalPrompts} prompts
+                </span>
+                <span className="text-sm font-semibold text-emerald-700">
+                  {progressPercentage}%
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-200">
+                <div
+                  className="h-full bg-emerald-600 transition-all duration-500 ease-out"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-8">
             {journalOutlineFromSanity.promptCategories.map((category) => (
               <div
                 key={category.name}
                 id={category.name.toLowerCase().replace(/\s+/g, "-")}
+                className="space-y-6"
               >
-                <h4 className="mb-4 text-xl font-light">{category.name}</h4>
+                <h4 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                  {category.name}
+                </h4>
                 {category.prompts.map((prompt) => (
-                  <div key={prompt._key} className="flex flex-col items-center">
-                    <div className="my-2 w-full rounded-lg py-1">
-                      <h5 className="text-lg font-light">
-                        <PortableText value={prompt.prompt} />
-                      </h5>
-                      <textarea
-                        id={`textarea-${prompt._key}`}
-                        name={`userInput-${prompt._key}`}
-                        className="my-2 h-28 w-full rounded-md border-0 p-2 shadow-sm ring-2 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-700"
-                        value={userInputs[prompt._key] || ""}
-                        onChange={(e) =>
-                          handleInputChange(prompt._key, e.target.value)
-                        }
-                      ></textarea>
-                    </div>
+                  <div key={prompt._key} className="space-y-3">
+                    <label htmlFor={`textarea-${prompt._key}`} className="block text-base font-medium text-gray-700">
+                      <PortableText value={prompt.prompt} />
+                    </label>
+                    <AutoExpandTextarea
+                      id={`textarea-${prompt._key}`}
+                      name={`userInput-${prompt._key}`}
+                      value={userInputs[prompt._key] || ""}
+                      onChange={handleInputChange}
+                      promptKey={prompt._key}
+                    />
                   </div>
                 ))}
               </div>
             ))}
-            <SubmitButton classes="rounded-lg bg-emerald-700 px-4 text-lg py-2 mt-6 text-white disabled:bg-gray-500 disabled:cursor-not-allowed disabled:text-gray-100 w-full">
-              Save my answers
-            </SubmitButton>
+
+            <div className="sticky bottom-0 -mx-6 -mb-4 mt-8 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-600">
+                  {completedPrompts} of {totalPrompts} prompts completed
+                </span>
+                {lastSaved && (
+                  <span className="text-xs text-gray-500">
+                    Last saved at {lastSaved}
+                  </span>
+                )}
+              </div>
+              <SubmitButton classes="w-full rounded-lg bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+                Save my answers
+              </SubmitButton>
+            </div>
           </form>
         </div>
       );
@@ -313,8 +423,37 @@ export default function JournalTextAreaForm({
   }
 
   return (
-    <div className="mt-4 text-sm leading-6 lg:col-span-7 xl:col-span-8">
-      <h1 className="mb-4 text-2xl font-extralight">{formattedDate}</h1>
+    <div className="mt-4 leading-6 lg:col-span-7 xl:col-span-8">
+      {/* Date header with navigation */}
+      <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
+        <button
+          onClick={handlePreviousDate}
+          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          title="Previous day"
+        >
+          <ChevronLeftIcon className="h-5 w-5" />
+          <span className="hidden sm:inline">Previous</span>
+        </button>
+
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {formattedDate}
+        </h1>
+
+        <button
+          onClick={handleNextDate}
+          disabled={isToday}
+          className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isToday
+              ? 'text-gray-400 cursor-not-allowed'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          title="Next day"
+        >
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRightIcon className="h-5 w-5" />
+        </button>
+      </div>
+
       {submissionNotice}
       {content}
     </div>
@@ -335,56 +474,64 @@ const ExistingEntry = ({
   };
 
   return (
-    <div>
-      <div>
+    <div className="space-y-6">
+      {/* Sticky action bar */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-4 mb-6 flex items-center justify-between border-b border-gray-200 bg-white/95 backdrop-blur-sm px-6 py-4">
+        <div className="flex items-center gap-3">
+          <CheckCircleIcon className="h-6 w-6 text-emerald-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Entry Saved</p>
+            <p className="text-xs text-gray-500">
+              {previousInputData.createdAt || "Recently"}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleClick}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors"
+        >
+          Edit Entry
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="space-y-8">
         {journalOutlineFromSanity.promptCategories.map((category) => (
-          <div key={category.name}>
-            <h4 className="mb-4 text-xl font-light">{category.name}</h4>
+          <div key={category.name} className="space-y-6">
+            <h4 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              {category.name}
+            </h4>
             {category.prompts.map((prompt) => {
               const response = previousInputData.decryptedUserInput
                 ? previousInputData.decryptedUserInput[prompt._key]
                 : "";
 
               return (
-                <div key={prompt._key} className="flex flex-col items-center">
-                  <div className="my-4 w-full rounded-lg py-1">
-                    <h5 className="font-light">
-                      <PortableText
-                        value={prompt.prompt}
-                        components={portableTextComponents}
-                      />
-                    </h5>
-                    <div>
-                      {response ? (
-                        <p className="mt-1 text-gray-800">{response}</p>
-                      ) : (
-                        <div className="relative rounded-lg border border-gray-100 bg-white px-6 py-4 text-gray-600">
-                          <div className="absolute -right-2 -top-3">
-                            <span className="relative flex h-5 w-5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex h-5 w-5 rounded-full bg-red-500"></span>
-                            </span>
-                          </div>
-                          <p className="text-sm">
-                            Select Edit below to complete this field.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                <div key={prompt._key} className="space-y-2">
+                  <h5 className="text-base font-medium text-gray-700">
+                    <PortableText
+                      value={prompt.prompt}
+                      components={portableTextComponents}
+                    />
+                  </h5>
+                  <div>
+                    {response ? (
+                      <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-gray-900 leading-relaxed">
+                        {response}
+                      </p>
+                    ) : (
+                      <div className="rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 px-4 py-3">
+                        <p className="text-sm text-amber-800">
+                          This prompt was not answered. Click "Edit Entry" above to complete it.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
         ))}
-      </div>
-      <div className="not-prose flex items-center space-x-10">
-        <button
-          onClick={handleClick}
-          className="w-36 rounded-md bg-emerald-700 px-4 py-1 text-white hover:bg-emerald-600"
-        >
-          Edit entries
-        </button>
       </div>
     </div>
   );
