@@ -246,11 +246,12 @@ export default function JournalCalendar({
             key={day.dateString}
             type="button"
             onClick={() => handleDateClick(day)}
-            disabled={day.isFuture || !day.hasJournalEntry}
+            disabled={day.isFuture}
             className={classNames(
-              "py-1.5 focus:z-10",
-              day.hasJournalEntry ? "bg-white" : "bg-gray-100",
-              !day.isCurrentMonth && "bg-gray-300",
+              "py-1.5 focus:z-10 transition-colors",
+              day.hasJournalEntry ? "bg-white" : "bg-gray-50",
+              !day.isCurrentMonth && "bg-gray-200",
+              day.isFuture && "bg-gray-100 cursor-not-allowed",
               (day.isSelected || day.isToday) && "font-semibold",
               day.isSelected && "text-white",
               !day.isSelected &&
@@ -262,19 +263,30 @@ export default function JournalCalendar({
                 !day.isCurrentMonth &&
                 !day.isToday &&
                 "text-gray-400",
-              day.isToday && !day.isSelected && "text-sky-600",
+              day.isToday && !day.isSelected && "text-emerald-600",
+              day.isFuture && "text-gray-300",
               dayIdx === 0 && "rounded-tl-lg",
               dayIdx === 6 && "rounded-tr-lg",
               dayIdx === days.length - 7 && "rounded-bl-lg",
               dayIdx === days.length - 1 && "rounded-br-lg",
-              day.hasJournalEntry && "drop-shadow-xl hover:bg-emerald-500/25"
+              !day.isFuture && "hover:bg-emerald-50 cursor-pointer"
             )}
+            title={
+              day.isFuture
+                ? "Future date"
+                : day.hasJournalEntry
+                ? "View entry"
+                : "Create new entry"
+            }
           >
             <time
               dateTime={day.dateString}
               className={classNames(
                 "relative mx-auto flex h-7 w-7 items-center justify-center rounded-full",
-                day.isSelected && "bg-emerald-600"
+                day.isSelected && "bg-emerald-600",
+                day.hasJournalEntry &&
+                  !day.isSelected &&
+                  "after:absolute after:bottom-0 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-emerald-600"
               )}
             >
               {day.dayNumber}
