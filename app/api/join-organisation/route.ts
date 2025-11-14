@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
-import { adminInit } from "@/firebase/auth/adminConfig";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-
-// Make sure adminInit() is called before using getFirestore()
-adminInit();
+import { db } from "@db/index";
+import {
+  users,
+  organizations,
+  organizationMembers,
+  organizationInvitations,
+} from "@db/schema";
+import { eq, and, gte } from "drizzle-orm";
+import { clerkClient } from "@clerk/nextjs/server";
 
 interface JoinRequestBody {
   orgId: string;
   token: string;
-  uid: string;
+  uid: string; // Clerk user ID
   role: "admin" | "standard"; // The membership type
 }
 
 /**
- * POST /api/join
+ * POST /api/join-organisation
  * Expects JSON body: { orgId, token, uid, role }
  */
 export async function POST(request: Request) {
@@ -30,89 +34,90 @@ export async function POST(request: Request) {
       );
     }
 
-    // Reference Firestore via the Admin SDK
-    const db = getFirestore();
-    const orgRef = db.collection("organisations").doc(orgId);
-    const userRef = db.collection("users").doc(uid);
+    // Get user from database using Clerk ID
+    const user = await db.query.users.findFirst({
+      where: eq(users.clerkId, uid),
+    });
 
-    // Use a Firestore transaction to avoid concurrency issues
-    await db.runTransaction(async (transaction) => {
-      // 1) Get organisation doc
-      const orgSnapshot = await transaction.get(orgRef);
-      if (!orgSnapshot.exists) {
-        throw new Error("Organisation not found.");
-      }
+    if (!user) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
 
-      const orgData = orgSnapshot.data();
-      if (!orgData) {
-        throw new Error("Organisation data not found.");
-      }
+    // Get organization
+    const organization = await db.query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+    });
 
-      // 2) Check token
-      if (
-        !orgData.joinToken ||
-        orgData.joinToken.token !== token ||
-        !orgData.joinToken.valid
-      ) {
-        throw new Error("Invalid or missing token.");
-      }
-
-      // 3) Check expiry
-      const expiresAt = orgData.joinToken.expiresAt;
-      const expiresDate = new Date(
-        expiresAt.seconds * 1000 + (expiresAt.nanoseconds || 0) / 1_000_000
+    if (!organization) {
+      return NextResponse.json(
+        { error: "Organisation not found." },
+        { status: 404 }
       );
-      if (expiresDate < new Date()) {
-        throw new Error("Invitation link has expired.");
-      }
+    }
 
-      // 4) Check seat availability
-      const subscriptionQuantity = orgData.subscriptionQuantity || 0;
-      const adminArray = orgData?.members?.admin || [];
-      const standardArray = orgData?.members?.standard || [];
-      const totalMembersCount = adminArray.length + standardArray.length;
+    // Check for valid invitation token
+    const invitation = await db.query.organizationInvitations.findFirst({
+      where: and(
+        eq(organizationInvitations.organizationId, orgId),
+        eq(organizationInvitations.token, token),
+        eq(organizationInvitations.valid, true),
+        gte(organizationInvitations.expiresAt, new Date())
+      ),
+    });
 
-      if (totalMembersCount >= subscriptionQuantity) {
-        throw new Error("No seats available in this organisation.");
-      }
-
-      // 5) Add user to either admin or standard
-      if (role === "admin") {
-        if (!adminArray.includes(uid)) {
-          adminArray.push(uid);
-        }
-      } else {
-        if (!standardArray.includes(uid)) {
-          standardArray.push(uid);
-        }
-      }
-
-      // 6) Update the organisation doc
-      transaction.update(orgRef, {
-        "members.admin": adminArray,
-        "members.standard": standardArray,
-      });
-
-      // 7) Also update the *user doc* with organisation info
-      transaction.set(
-        userRef,
-        {
-          organisation: {
-            joined: FieldValue.serverTimestamp(), // serverTimestamp
-            logoUrl: orgData.logoUrl || "",
-            name: orgData.name || "",
-            organisationId: orgId,
-            role: role,
-          },
-        },
-        { merge: true }
+    if (!invitation) {
+      return NextResponse.json(
+        { error: "Invalid or expired invitation token." },
+        { status: 400 }
       );
+    }
+
+    // Check seat availability
+    const currentMembers = await db.query.organizationMembers.findMany({
+      where: eq(organizationMembers.organizationId, orgId),
+    });
+
+    const totalMembersCount = currentMembers.length;
+
+    if (totalMembersCount >= organization.subscriptionQuantity) {
+      return NextResponse.json(
+        { error: "No seats available in this organisation." },
+        { status: 400 }
+      );
+    }
+
+    // Check if user is already a member
+    const existingMembership = currentMembers.find(
+      (member) => member.userId === user.id
+    );
+
+    if (existingMembership) {
+      return NextResponse.json(
+        { error: "User is already a member of this organisation." },
+        { status: 400 }
+      );
+    }
+
+    // Add user to organization
+    await db.insert(organizationMembers).values({
+      organizationId: orgId,
+      userId: user.id,
+      role,
+    });
+
+    // Update Clerk metadata with organization ID
+    const clerkUser = await clerkClient.users.getUser(uid);
+    await clerkClient.users.updateUserMetadata(uid, {
+      publicMetadata: {
+        ...clerkUser.publicMetadata,
+        organizationId: orgId,
+      },
     });
 
     // If transaction succeeds
     return NextResponse.json({
       success: true,
-      message: "Joined organisation and user doc updated.",
+      message: "Joined organisation successfully.",
     });
   } catch (error: any) {
     console.error(error);
@@ -122,110 +127,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-// import { NextResponse } from "next/server";
-// import { auth } from "firebase-admin";
-// import { adminInit } from "@/firebase/auth/adminConfig";
-// import { getFirestore, FieldValue } from "firebase-admin/firestore";
-
-// adminInit();
-
-// interface JoinRequestBody {
-//   orgId: string;
-//   token: string;
-//   uid: string;
-//   role: "admin" | "standard"; // The membership type
-// }
-
-// export async function POST(request: Request) {
-//   try {
-//     // Parse JSON body
-//     const { orgId, token, uid, role } =
-//       (await request.json()) as JoinRequestBody;
-
-//     if (!orgId || !token || !uid || !role) {
-//       return NextResponse.json(
-//         { error: "Missing orgId, token, uid, or role." },
-//         { status: 400 }
-//       );
-//     }
-
-//     const db = getFirestore();
-//     const orgRef = db.collection("organisations").doc(orgId);
-//         const userRef = db.collection("users").doc(uid);
-
-//     // Use a Firestore transaction to avoid concurrency issues
-//     await db.runTransaction(async (transaction) => {
-//       const orgSnapshot = await transaction.get(orgRef);
-//       if (!orgSnapshot.exists) {
-//         throw new Error("Organisation not found.");
-//       }
-
-//       const orgData = orgSnapshot.data();
-//       if (!orgData) {
-//         throw new Error("Organisation data not found.");
-//       }
-
-//       // 1) Check token
-//       if (
-//         !orgData.joinToken ||
-//         orgData.joinToken.token !== token ||
-//         !orgData.joinToken.valid
-//       ) {
-//         throw new Error("Invalid or missing token.");
-//       }
-
-//       // 2) Check expiry
-//       const expiresAt = orgData.joinToken.expiresAt;
-//       const expiresDate = new Date(
-//         expiresAt.seconds * 1000 + (expiresAt.nanoseconds || 0) / 1_000_000
-//       );
-//       if (expiresDate < new Date()) {
-//         throw new Error("Invitation link has expired.");
-//       }
-
-//       // 3) Check seat availability
-//       //    We'll consider that both admins and standard users count toward subscription seats
-//       const subscriptionQuantity = orgData.subscriptionQuantity || 0;
-
-//       const adminArray = orgData?.members?.admin || [];
-//       const standardArray = orgData?.members?.standard || [];
-
-//       // Combined seat usage: admin + standard
-//       const totalMembersCount = adminArray.length + standardArray.length;
-//       if (totalMembersCount >= subscriptionQuantity) {
-//         throw new Error("No seats available in this organisation.");
-//       }
-
-//       // 4) Depending on the 'role', push UID into the appropriate array
-//       if (role === "admin") {
-//         if (!adminArray.includes(uid)) {
-//           adminArray.push(uid);
-//         }
-//       } else {
-//         // role === "standard"
-//         if (!standardArray.includes(uid)) {
-//           standardArray.push(uid);
-//         }
-//       }
-
-//       // 5) Update Firestore with new arrays
-//       transaction.update(orgRef, {
-//         "members.admin": adminArray,
-//         "members.standard": standardArray,
-//       });
-//     });
-
-//     // If transaction succeeds
-//     return NextResponse.json({
-//       success: true,
-//       message: "Joined organisation.",
-//     });
-//   } catch (error: any) {
-//     console.error(error);
-//     return NextResponse.json(
-//       { success: false, error: error.message || "Unknown error." },
-//       { status: 400 }
-//     );
-//   }
-// }

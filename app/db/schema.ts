@@ -107,6 +107,46 @@ export const recommendedArticles = pgTable("recommended_articles", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Organizations table
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  ownerEmail: text("owner_email").notNull(),
+  logoUrl: text("logo_url"),
+  subscriptionStatus: text("subscription_status").notNull().default("active"),
+  subscriptionQuantity: integer("subscription_quantity").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Organization members table (junction table)
+export const organizationMembers = pgTable("organization_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("standard"), // "admin" or "standard"
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+// Organization invitations table
+export const organizationInvitations = pgTable("organization_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  valid: boolean("valid").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   journalEntries: many(journalEntries),
@@ -115,6 +155,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   stressRatings: many(stressRatings),
   burnoutAssessments: many(burnoutAssessments),
   recommendedArticles: many(recommendedArticles),
+  ownedOrganizations: many(organizations),
+  organizationMemberships: many(organizationMembers),
 }));
 
 export const journalEntriesRelations = relations(journalEntries, ({ one }) => ({
@@ -165,6 +207,42 @@ export const recommendedArticlesRelations = relations(
   })
 );
 
+export const organizationsRelations = relations(
+  organizations,
+  ({ one, many }) => ({
+    owner: one(users, {
+      fields: [organizations.ownerId],
+      references: [users.id],
+    }),
+    members: many(organizationMembers),
+    invitations: many(organizationInvitations),
+  })
+);
+
+export const organizationMembersRelations = relations(
+  organizationMembers,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationMembers.organizationId],
+      references: [organizations.id],
+    }),
+    user: one(users, {
+      fields: [organizationMembers.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const organizationInvitationsRelations = relations(
+  organizationInvitations,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationInvitations.organizationId],
+      references: [organizations.id],
+    }),
+  })
+);
+
 // Type exports for use in your application
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -180,3 +258,9 @@ export type BurnoutAssessment = typeof burnoutAssessments.$inferSelect;
 export type NewBurnoutAssessment = typeof burnoutAssessments.$inferInsert;
 export type RecommendedArticle = typeof recommendedArticles.$inferSelect;
 export type NewRecommendedArticle = typeof recommendedArticles.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+export type NewOrganizationMember = typeof organizationMembers.$inferInsert;
+export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+export type NewOrganizationInvitation = typeof organizationInvitations.$inferInsert;
