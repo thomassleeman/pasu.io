@@ -1,7 +1,7 @@
 # Firebase to Clerk/Drizzle Migration Plan
 
 **Status**: In Progress
-**Last Updated**: October 21, 2025
+**Last Updated**: November 14, 2025
 **Goal**: Complete migration from Firebase Auth + Firestore to Clerk Auth + Drizzle/PostgreSQL
 
 **Recent Progress**:
@@ -9,6 +9,7 @@
 - ✅ October 21, 2025: Task 1.2 completed - Journaling write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.3 completed - Stress rating write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.4 completed - Course progress write operations migrated to Drizzle
+- ⚠️ November 14, 2025: Task 4.3 partially completed - Firebase imports cleaned from migrated features
 
 ---
 
@@ -641,18 +642,60 @@ npm uninstall firebase firebase-admin react-firebase-hooks
 
 ---
 
-### Task 4.3: Remove Firebase Imports
+### ~~Task 4.3: Remove Firebase Imports~~ ⚠️ PARTIALLY COMPLETE
 
-**Search and remove**:
-```bash
-# Search for remaining Firebase imports
-grep -r "from 'firebase" app/
-grep -r "from \"firebase" app/
-grep -r "@firebase" app/
-```
+**Status**: ⚠️ **PARTIALLY COMPLETE** - Cleaned up imports from migrated features (Tasks 1.1-1.4), but cannot fully complete until Tasks 1.5, 1.6, and Phase 2 are done.
 
-**Files to clean**:
-- [ ] Remove all `import ... from 'firebase/...'`
+**Completed Cleanup** (October 21, 2025):
+- [x] ✅ Removed Firebase imports from journaling files (Task 1.2)
+  - `app/journaling/JournalTextAreaForm.tsx` - Replaced `Timestamp` with native Date
+- [x] ✅ Removed unused Firebase functions:
+  - `app/courses/getCoursesData.ts` - Removed `getCompletedModules()` and Firebase imports
+  - `app/articles/getArticlesData.tsx` - Removed `getRecommendedArticlesData()` and Firebase imports
+- [x] ✅ Stress rating files already clean (Task 1.3 complete)
+- [x] ✅ Course progress write files already clean (Task 1.4 complete)
+
+**Remaining Firebase Usage** (Cannot remove until migration complete):
+
+**1. Task 1.5 - Exercise Write Operations** (NOT MIGRATED):
+- `app/exercises/writing-exercises/updateDatabase.ts` - Writes to Firestore
+- `app/exercises/writing-exercises/WritingExerciseForm.tsx` - Reads from Firestore
+
+**2. Task 1.6 - Chatbot Write Operations** (NOT MIGRATED):
+- `app/chatbot/widgets/functions/updateDatabase.tsx` - Burnout assessments to Firestore
+
+**3. Task 2.1 - Auth API Routes** (NOT MIGRATED):
+- `app/api/accessUserId/route.ts` - Firebase Auth (should be deleted per Task 2.1)
+- `app/api/signin/route.ts` - Firebase Auth
+- `app/api/checkout-session/route.tsx` - Firebase Auth for Stripe
+- `app/api/stripe-webhook/route.ts` - Firebase custom claims
+- `app/api/new-organisation/route.tsx` - Firebase Auth + Firestore
+- `app/api/join-organisation/route.ts` - Firebase Firestore
+- `app/api/newAdmin/route.tsx` - Firebase custom claims
+- `app/api/remove-custom-claims/route.ts` - Firebase custom claims
+- `app/api/accessUserAuth/route.tsx` - Firebase Auth
+- `app/api/new-content-webhook/route.ts` - Firebase Firestore
+- `app/actions/authAction.ts` - Firebase Admin auth (legacy)
+- `app/actions/dbUserAction.ts` - Firebase Admin Firestore
+
+**4. Realtime Subscriptions** (NOT IN MIGRATION PLAN):
+- `app/courses/[courseSlug]/subscribeToCompletedResources.ts` - Uses `onSnapshot` for realtime updates
+
+**5. Other Features Still Using Firebase**:
+- `app/organisation/[id]/page.tsx` - Organization data in Firestore
+- `app/profile/[uid]/components/DeleteAccountAlert.tsx` - Firestore deleteDoc
+- `app/profile/[uid]/components/ClearCustomClaims.tsx` - Firebase Auth types
+- `app/pasu-ai/_components/ChatContainer.tsx` - Firebase VertexAI ChatSession
+
+**Next Steps**:
+1. Complete Task 1.5 (Exercise write operations)
+2. Complete Task 1.6 (Chatbot write operations)
+3. Complete Phase 2 (Auth migration)
+4. Migrate realtime subscriptions to alternative (Supabase realtime, polling, or webhooks)
+5. Return to Task 4.3 for final cleanup
+
+**Files to clean** (when ready):
+- [ ] Remove all remaining `import ... from 'firebase/...'`
 - [ ] Remove all Firebase initialization code
 - [ ] Remove Firebase environment variables from `.env.local`
 

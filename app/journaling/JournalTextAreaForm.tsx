@@ -2,7 +2,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { serverTimestamp, Timestamp } from "firebase/firestore";
 import { format, addDays, subDays } from "date-fns";
 import { SubmitButton } from "@/app/_components/ui/_components/Buttons";
 import { ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
@@ -252,7 +251,7 @@ export default function JournalTextAreaForm({
       // Update the local journalData state to reflect the new entry
       // with the correct nested structure
       if (setJournalData && journalData) {
-        const now = Timestamp.now();
+        const now = { seconds: Math.floor(Date.now() / 1000) };
         setJournalData({
           ...journalData,
           journaling: {

@@ -1,16 +1,7 @@
 "use server";
-//Firestore
-import { getFirestore } from "firebase-admin/firestore";
-//Firebase config
-import { adminInit } from "@/firebase/auth/adminConfig";
-//server actions
-import userIdAction from "@actions/userIdAction";
 
 //sanity
 import { client } from "@/sanity/client";
-
-adminInit();
-const db = getFirestore();
 
 /* ----------------------------------------------------------------------------------------- */
 /* COURSE PAGE QUERIES */
@@ -76,34 +67,3 @@ export async function getNamedCoursesData(slugs: string[]) {
 }
 
 /* ----------------------------------------------------------------------------------------- */
-
-export async function getCompletedModules(courseSlug: string) {
-  // a) Get the user from firebase and check for recommended articles
-  const userId = await userIdAction();
-  if (!userId) {
-    return;
-  }
-
-  const userRef = db.collection("users").doc(userId);
-
-  const doc = await userRef.get();
-  if (!doc.exists) {
-    return;
-  }
-
-  const user = doc.data();
-  if (!user) {
-    return;
-  }
-
-  if (!user.courses) {
-    return;
-  }
-
-  const completedModules = user.courses[courseSlug];
-  if (!completedModules) {
-    return;
-  }
-
-  return completedModules;
-}
