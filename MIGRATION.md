@@ -1,7 +1,7 @@
 # Firebase to Clerk/Drizzle Migration Plan
 
 **Status**: In Progress
-**Last Updated**: October 21, 2025
+**Last Updated**: November 14, 2025
 **Goal**: Complete migration from Firebase Auth + Firestore to Clerk Auth + Drizzle/PostgreSQL
 
 **Recent Progress**:
@@ -9,6 +9,7 @@
 - ✅ October 21, 2025: Task 1.2 completed - Journaling write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.3 completed - Stress rating write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.4 completed - Course progress write operations migrated to Drizzle
+- ✅ November 14, 2025: Task 1.6 completed - Chatbot write operations (burnout assessments & article recommendations) migrated to Drizzle
 
 ---
 
@@ -375,19 +376,39 @@ const StressLevelComponent = () => {
 
 ---
 
-### Task 1.6: Replace Chatbot Write Operations
+### ~~Task 1.6: Replace Chatbot Write Operations~~ ✅
 
-**Files to Update**:
-- `app/chatbot/widgets/functions/updateDatabase.tsx`
+**Files Updated**:
+- ✅ [app/actions/userDataActions.ts](app/actions/userDataActions.ts) - Added `createBurnoutAssessment` and `createRecommendedArticles` server actions
+- ✅ [app/chatbot/widgets/functions/updateDatabase.tsx](app/chatbot/widgets/functions/updateDatabase.tsx)
 
-**Notes**:
-- May need additional schema if chatbot interactions aren't covered
-- Consider if chatbot data should be stored separately or integrated with existing tables
+**Changes Made**:
+1. ✅ Added `createRecommendedArticles` server action that bulk inserts article recommendations
+2. ✅ Removed Firebase imports (`getFirestore`, `doc`, `setDoc`, `serverTimestamp`)
+3. ✅ Removed `/api/accessUserId` dependency (auth now handled by Clerk in server actions)
+4. ✅ Replaced Firestore write with `createBurnoutAssessment` server action
+5. ✅ Replaced Firestore article write with `createRecommendedArticles` server action
+6. ✅ Maintained client-side encryption flow via `/api/encryption/encryptNumber`
+
+**Implementation Details**:
+- **Burnout Assessment**: Uses existing `createBurnoutAssessment` server action which writes encrypted assessment data to `burnoutAssessments` table
+- **Recommended Articles**: New `createRecommendedArticles` server action that:
+  - Deletes existing recommendations for the user
+  - Bulk inserts new article recommendations based on assessment scores
+  - Uses `calculateRecommendedArticles` to determine which articles to recommend
+- **Encryption**: Maintains existing encryption pattern - assessment scores are encrypted client-side before being passed to server actions
+- **Authentication**: Clerk authentication handled automatically by server actions via `getCurrentUser()` helper
 
 **Acceptance Criteria**:
-- [ ] Chatbot interactions write to appropriate table
-- [ ] Review if burnout assessment results need special handling
-- [ ] Test burnout assessment completion
+- [x] ~~Burnout assessment writes to `burnoutAssessments` table~~
+- [x] ~~Recommended articles write to `recommendedArticles` table~~
+- [x] ~~Firebase imports removed~~
+- [x] ~~No longer depends on `/api/accessUserId`~~
+- [ ] Test burnout assessment completion flow
+- [ ] Verify assessment data appears on dashboard
+- [ ] Verify recommended articles appear correctly
+
+**Status**: ✅ **COMPLETED** - All Firebase write operations migrated to Drizzle server actions. Chatbot now uses `createBurnoutAssessment` and `createRecommendedArticles` server actions. Authentication handled by Clerk. Testing recommended to verify full burnout assessment flow.
 
 ---
 

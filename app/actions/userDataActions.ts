@@ -8,6 +8,7 @@ import {
   courses,
   exercises,
   burnoutAssessments,
+  recommendedArticles,
 } from '@db/schema';
 import { auth } from '@clerk/nextjs/server';
 import { eq, and, gte, lt } from 'drizzle-orm';
@@ -418,6 +419,41 @@ export async function createBurnoutAssessment(data: {
     console.error('Error creating burnout assessment:', error);
     throw new Error(
       error instanceof Error ? error.message : 'Failed to create burnout assessment'
+    );
+  }
+}
+
+/**
+ * Create recommended articles for the current user
+ * Deletes any existing recommended articles before adding new ones
+ * @param articleSlugs - Array of article slugs to recommend
+ * @returns Success status
+ */
+export async function createRecommendedArticles(articleSlugs: string[]) {
+  try {
+    const user = await getCurrentUser();
+
+    // Delete any existing recommended articles for this user
+    await db
+      .delete(recommendedArticles)
+      .where(eq(recommendedArticles.userId, user.id));
+
+    // Insert new recommended articles
+    if (articleSlugs.length > 0) {
+      const articlesToInsert = articleSlugs.map((slug) => ({
+        userId: user.id,
+        articleSlug: slug,
+      }));
+
+      await db.insert(recommendedArticles).values(articlesToInsert);
+    }
+
+    revalidatePath('/home/[clerkId]', 'page');
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating recommended articles:', error);
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to create recommended articles'
     );
   }
 }
