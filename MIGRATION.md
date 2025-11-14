@@ -1,7 +1,7 @@
 # Firebase to Clerk/Drizzle Migration Plan
 
 **Status**: In Progress
-**Last Updated**: October 21, 2025
+**Last Updated**: November 14, 2025
 **Goal**: Complete migration from Firebase Auth + Firestore to Clerk Auth + Drizzle/PostgreSQL
 
 **Recent Progress**:
@@ -9,6 +9,7 @@
 - ✅ October 21, 2025: Task 1.2 completed - Journaling write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.3 completed - Stress rating write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.4 completed - Course progress write operations migrated to Drizzle
+- ✅ November 14, 2025: Task 1.5 completed - Exercise write operations migrated to Drizzle
 
 ---
 
@@ -359,19 +360,29 @@ const StressLevelComponent = () => {
 
 ---
 
-### Task 1.5: Replace Exercise Write Operations
+### ~~Task 1.5: Replace Exercise Write Operations~~ ✅
 
-**Files to Update**:
-- `app/exercises/writing-exercises/updateDatabase.ts`
-- `app/exercises/writing-exercises/WritingExerciseForm.tsx`
+**Files Updated**:
+- ✅ [app/exercises/writing-exercises/updateDatabase.ts](app/exercises/writing-exercises/updateDatabase.ts)
+- ✅ [app/exercises/writing-exercises/WritingExerciseForm.tsx](app/exercises/writing-exercises/WritingExerciseForm.tsx)
 
-**Pattern**: Same as courses - use `updateExerciseProgress` server action
+**Changes Made**:
+1. ✅ Removed Firebase `setDoc`/`getDoc` calls
+2. ✅ Added `getExerciseProgress` and `updateExerciseProgress` server actions
+3. ✅ Removed `/api/accessUserId` dependency
+4. ✅ Progress percentage calculated on client and sent to server
+
+**Implementation Details**:
+- **updateDatabase.ts**: Now uses `updateExerciseProgress` server action to save exercise progress and encrypted user input. Removed all Firebase imports (`getFirestore`, `doc`, `setDoc`, `serverTimestamp`).
+- **WritingExerciseForm.tsx**: Refactored to use `getExerciseProgress` server action instead of Firebase for fetching previous exercise submissions. Firebase imports removed (`app`, `doc`, `getFirestore`, `getDoc`).
 
 **Acceptance Criteria**:
-- [ ] Exercise submissions write to Drizzle
-- [ ] Progress percentage calculated correctly
-- [ ] Dashboard shows updated exercise progress
-- [ ] Test exercise completion flow
+- [x] ~~Exercise submissions write to Drizzle~~
+- [x] ~~Progress percentage calculated correctly~~
+- [ ] Dashboard shows updated exercise progress (needs testing)
+- [ ] Test exercise completion flow (needs testing)
+
+**Status**: ✅ **COMPLETED** - All Firebase write operations migrated to Drizzle server actions. Testing recommended to verify full exercise flow.
 
 ---
 
