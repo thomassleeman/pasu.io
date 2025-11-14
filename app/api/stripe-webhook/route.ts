@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { auth } from "firebase-admin";
-import { adminInit } from "@/firebase/auth/adminConfig";
-
-adminInit();
+import { clerkClient } from "@clerk/nextjs/server";
+import { db } from "@/app/db/index";
+import { users } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
@@ -74,18 +74,38 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     const quantity = subscription.items.data[0]?.quantity || 1;
     const status = subscription.status;
 
-    // Find the user in Firebase by email
-    const user = await auth().getUserByEmail(email);
-
-    // Fetch existing custom claims
-    const existingCustomClaims = user.customClaims || {};
-
-    // Update custom claims without overwriting existing ones
-    await auth().setCustomUserClaims(user.uid, {
-      ...existingCustomClaims,
-      subscriptionStatus: status,
-      subscriptionQuantity: quantity,
+    // Find the user in Clerk by email
+    const client = await clerkClient();
+    const clerkUsers = await client.users.getUserList({
+      emailAddress: [email],
     });
+
+    if (clerkUsers.data.length === 0) {
+      console.error("User not found in Clerk:", email);
+      return;
+    }
+
+    const clerkUser = clerkUsers.data[0];
+
+    // Update Clerk publicMetadata with subscription data
+    await client.users.updateUserMetadata(clerkUser.id, {
+      publicMetadata: {
+        ...clerkUser.publicMetadata,
+        subscriptionStatus: status,
+        subscriptionQuantity: quantity,
+      },
+    });
+
+    // Also update the database for query purposes
+    await db
+      .update(users)
+      .set({
+        subscriptionStatus: status,
+        subscriptionQuantity: quantity,
+        stripeCustomerId: customerId,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.clerkId, clerkUser.id));
   }
 }
 
@@ -107,16 +127,36 @@ async function handleSubscriptionEvent(event: Stripe.Event) {
     return;
   }
 
-  // Find the user in Firebase by email
-  const user = await auth().getUserByEmail(email);
-
-  // Fetch existing custom claims
-  const existingCustomClaims = user.customClaims || {};
-
-  // Update custom claims without overwriting existing ones
-  await auth().setCustomUserClaims(user.uid, {
-    ...existingCustomClaims,
-    subscriptionStatus: status,
-    subscriptionQuantity: quantity,
+  // Find the user in Clerk by email
+  const client = await clerkClient();
+  const clerkUsers = await client.users.getUserList({
+    emailAddress: [email],
   });
+
+  if (clerkUsers.data.length === 0) {
+    console.error("User not found in Clerk:", email);
+    return;
+  }
+
+  const clerkUser = clerkUsers.data[0];
+
+  // Update Clerk publicMetadata with subscription data
+  await client.users.updateUserMetadata(clerkUser.id, {
+    publicMetadata: {
+      ...clerkUser.publicMetadata,
+      subscriptionStatus: status,
+      subscriptionQuantity: quantity,
+    },
+  });
+
+  // Also update the database for query purposes
+  await db
+    .update(users)
+    .set({
+      subscriptionStatus: status,
+      subscriptionQuantity: quantity,
+      stripeCustomerId: customerId,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.clerkId, clerkUser.id));
 }

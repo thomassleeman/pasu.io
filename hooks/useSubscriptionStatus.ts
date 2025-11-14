@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth } from "@/firebase/auth/appConfig";
-import { onIdTokenChanged, User } from "firebase/auth";
+import { useUser } from "@clerk/nextjs";
 
 interface SubscriptionInfo {
   status: "loading" | "active" | "none"; // Define possible status values explicitly for better type safety
@@ -10,31 +9,28 @@ interface SubscriptionInfo {
 }
 
 export default function useSubscriptionStatus(): SubscriptionInfo {
+  const { user, isLoaded } = useUser();
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo>({
     status: "loading",
     quantity: 0,
   });
 
   useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (user: User | null) => {
+    if (isLoaded) {
       if (user) {
-        const tokenResult = await user.getIdTokenResult(true);
-        console.log("token result: ", tokenResult);
+        // Read subscription data from Clerk publicMetadata
+        const subscriptionStatus = (user.publicMetadata?.subscriptionStatus as string) || "none";
+        const subscriptionQuantity = (user.publicMetadata?.subscriptionQuantity as number) || 0;
+
         setSubscriptionInfo({
-          status:
-            (tokenResult.claims.subscriptionStatus as "active" | "none") ||
-            "none",
-          quantity:
-            typeof tokenResult.claims.subscriptionQuantity === "number"
-              ? tokenResult.claims.subscriptionQuantity
-              : 0,
+          status: (subscriptionStatus === "active" ? "active" : "none") as "active" | "none",
+          quantity: subscriptionQuantity,
         });
       } else {
         setSubscriptionInfo({ status: "none", quantity: 0 });
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    }
+  }, [user, isLoaded]);
 
   return subscriptionInfo;
 }

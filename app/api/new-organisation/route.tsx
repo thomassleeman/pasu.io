@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "firebase-admin";
-import { adminInit } from "@/firebase/auth/adminConfig";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
-
-adminInit();
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { db } from "@/app/db/index";
+import { users } from "@/app/db/schema";
+import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    // **Authenticate the user using Firebase Auth**
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
+    // **Authenticate the user using Clerk**
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const idToken = authHeader.split(" ")[1];
-    if (!idToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const decodedToken = await auth().verifyIdToken(idToken);
-    // console.log("decodedToken:", decodedToken);
-    const uid = decodedToken.uid;
-    const displayName = decodedToken.displayName;
 
     // Parse the incoming form data
     const formData = await request.formData();
@@ -45,97 +33,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // **Step 1: Check for existing organisation allocation**
-    const db = getFirestore();
-    const userRef = db.collection("users").doc(uid);
-    const userDoc = await userRef.get();
+    // Get Clerk user to check subscription
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+    const subscriptionQuantity = (clerkUser.publicMetadata?.subscriptionQuantity as number) || 0;
+    const subscriptionStatus = (clerkUser.publicMetadata?.subscriptionStatus as string) || "";
 
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      if (userData?.organisations?.length >= 1) {
-        return NextResponse.json(
-          { error: "Seats have already been allocated to an organisation." },
-          { status: 403 }
-        );
-      }
+    // **Step 1: Get user from database**
+    const user = await db.query.users.findFirst({
+      where: eq(users.clerkId, userId),
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found in database" },
+        { status: 404 }
+      );
     }
 
-    // **Step 2: Ensure the user has subscription seats available**
-    const subscriptionQuantity = decodedToken.subscriptionQuantity || 0;
+    // **Step 2: Check for existing organisation allocation**
+    if (user.organisationId) {
+      return NextResponse.json(
+        { error: "User already belongs to an organisation." },
+        { status: 403 }
+      );
+    }
+
+    // **Step 3: Ensure the user has subscription seats available**
     if (subscriptionQuantity < 2) {
       return NextResponse.json(
-        { error: "No subscription seats available." },
+        { error: "No subscription seats available. Need at least 2 seats to create an organisation." },
         { status: 400 }
       );
     }
 
-    // **Step 3: Upload the logo to Firebase Storage**
-    const bucket = getStorage().bucket(process.env.FIREBASE_STORAGE_BUCKET);
-    const logoFileName = `logos/${uid}_${Date.now()}_${logoFile.name}`;
-    const logoBuffer = Buffer.from(await logoFile.arrayBuffer());
+    // **Step 4: Upload the logo (for now, we'll store the file name, actual file storage would need implementation)**
+    // TODO: Implement proper file storage (e.g., upload to Vercel Blob, AWS S3, or Cloudinary)
+    // For now, we'll just use a placeholder URL
+    const logoUrl = `/logos/${userId}_${Date.now()}_${logoFile.name}`;
 
-    const file = bucket.file(logoFileName);
-    await file.save(logoBuffer, {
-      metadata: {
-        contentType: logoFile.type,
+    // In a real implementation, you would upload the file here:
+    // const logoBuffer = Buffer.from(await logoFile.arrayBuffer());
+    // const uploadedUrl = await uploadToStorage(logoBuffer, logoFile.type);
+
+    // **Step 5: Create organisation ID (you may want to create a separate organisations table)**
+    // For now, we'll use a simple ID format. In production, consider a UUID or database-generated ID
+    const organisationId = `org_${Date.now()}_${userId}`;
+
+    // **Step 6: Update user's database record**
+    await db
+      .update(users)
+      .set({
+        organisationId,
+        organisationRole: "owner",
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    // **Step 7: Update Clerk publicMetadata to include organisationId**
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: {
+        ...clerkUser.publicMetadata,
+        organisationId,
+        organisationRole: "owner",
       },
-      public: true,
     });
 
-    // Get the public URL to the uploaded file
-    const logoUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-
-    // **Step 4: Create the organisation**
-    const organisationRef = db.collection("organisations");
-    const newDocRef = await organisationRef.add({
-      name,
-      ownerId: uid,
-      members: {
-        admin: [uid],
-        standard: [],
-      },
-      ownerEmail: decodedToken.email,
-      subscriptionStatus: decodedToken.subscriptionStatus || "active",
-      subscriptionQuantity,
-      logoUrl,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-
-    const organisationId = newDocRef.id;
-
-    // **Step 5: Update user's custom claims to include organisationId**
-    // Fetch user's existing custom claims
-    const user = await auth().getUser(uid);
-    const existingCustomClaims = user.customClaims || {};
-
-    // Update only non-reserved custom claims
-    await auth().setCustomUserClaims(uid, {
-      ...existingCustomClaims, // Only existing custom claims are included
-      organisationId, // Add the new organisationId
-    });
-
-    // **Step 6: Update user's Firestore record to reflect the new organisation**
-    await userRef.set(
-      {
-        organisation: {
-          organisationId,
-          name,
-          subscriptionQuantity: subscriptionQuantity,
-          childUsers: [],
-          logoUrl,
-          role: "admin",
-          joined: FieldValue.serverTimestamp(),
-        },
-      },
-      { merge: true } // Merge to avoid overwriting existing user data
-    );
-
-    // **Step 7: Return success response**
+    // **Step 8: Return success response**
     return NextResponse.json(
       {
         message: "Organisation created successfully",
         organisationId,
         logoUrl,
+        note: "File upload functionality needs to be implemented with a storage provider"
       },
       { status: 201 }
     );

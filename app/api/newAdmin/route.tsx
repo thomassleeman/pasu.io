@@ -1,13 +1,10 @@
-import { adminInit } from "@/firebase/auth/adminConfig";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "firebase-admin";
-
-adminInit();
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, id } = body;
+    const { name, id } = body; // id is clerkId
     if (!name || !id) {
       return NextResponse.json(
         { error: "Missing name or id" },
@@ -15,13 +12,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch existing custom claims
-    const user = await auth().getUser(id);
-    const existingCustomClaims = user.customClaims || {};
+    // Update Clerk privateMetadata with admin role
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(id);
 
-    await auth().setCustomUserClaims(id, {
-      ...existingCustomClaims,
-      admin: true,
+    await client.users.updateUserMetadata(id, {
+      privateMetadata: {
+        ...clerkUser.privateMetadata,
+        admin: true,
+      },
     });
 
     return NextResponse.json({}, { status: 200 });

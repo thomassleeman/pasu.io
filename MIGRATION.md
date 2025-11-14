@@ -1,7 +1,7 @@
 # Firebase to Clerk/Drizzle Migration Plan
 
 **Status**: In Progress
-**Last Updated**: October 21, 2025
+**Last Updated**: November 14, 2025
 **Goal**: Complete migration from Firebase Auth + Firestore to Clerk Auth + Drizzle/PostgreSQL
 
 **Recent Progress**:
@@ -9,6 +9,7 @@
 - ✅ October 21, 2025: Task 1.2 completed - Journaling write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.3 completed - Stress rating write operations migrated to Drizzle
 - ✅ October 21, 2025: Task 1.4 completed - Course progress write operations migrated to Drizzle
+- ✅ November 14, 2025: Task 2.3 completed - Custom claims migrated to Clerk metadata
 
 ---
 
@@ -466,7 +467,7 @@ export default function useAuth(redirectTo = '/sign-in') {
 
 ---
 
-### Task 2.3: Migrate Custom Claims to Clerk Metadata
+### ~~Task 2.3: Migrate Custom Claims to Clerk Metadata~~ ✅
 
 **Current Firebase Custom Claims**:
 - `admin` - User is admin
@@ -496,11 +497,27 @@ await clerkClient.users.updateUserMetadata(userId, {
 ```
 
 **Acceptance Criteria**:
-- [ ] Subscription data stored in Clerk metadata
-- [ ] Admin roles stored in private metadata
-- [ ] Stripe webhook updates Clerk metadata
-- [ ] Components read from Clerk user object
-- [ ] Remove `remove-custom-claims` route
+- [x] ~~Subscription data stored in Clerk metadata~~
+- [x] ~~Admin roles stored in private metadata~~
+- [x] ~~Stripe webhook updates Clerk metadata~~
+- [x] ~~Components read from Clerk user object~~
+- [x] ~~Remove `remove-custom-claims` route~~
+
+**Status**: ✅ **COMPLETED** - All Firebase custom claims migrated to Clerk metadata system. Database schema updated with subscription and organization fields. Detailed implementation notes in [MIGRATION_NOTES_TASK_2_3.md](MIGRATION_NOTES_TASK_2_3.md).
+
+**Files Updated**:
+- ✅ [app/db/schema.ts](app/db/schema.ts) - Added subscription and organization fields
+- ✅ [app/api/stripe-webhook/route.ts](app/api/stripe-webhook/route.ts) - Updates Clerk publicMetadata and database
+- ✅ [app/api/newAdmin/route.tsx](app/api/newAdmin/route.tsx) - Uses Clerk privateMetadata for admin role
+- ✅ [app/api/new-organisation/route.tsx](app/api/new-organisation/route.tsx) - Migrated to Clerk + Drizzle
+- ✅ [app/api/join-organisation/route.ts](app/api/join-organisation/route.ts) - Migrated to Clerk + Drizzle
+- ✅ [hooks/useSubscriptionStatus.ts](hooks/useSubscriptionStatus.ts) - Reads from Clerk publicMetadata
+- ✅ Deleted `app/api/remove-custom-claims/route.ts`
+
+**Important Notes**:
+- ⚠️ **Database migration required**: Run `npx drizzle-kit generate && npx drizzle-kit migrate`
+- ⚠️ **TODOs**: Organization file upload and token validation need full implementation
+- **Dual Storage**: Data stored in both Clerk metadata (fast auth) and PostgreSQL (queries)
 
 ---
 

@@ -15,6 +15,13 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   clerkId: text("clerk_id").notNull().unique(),
   email: text("email").notNull(),
+  // Subscription fields (synced to Clerk publicMetadata)
+  subscriptionStatus: text("subscription_status"), // 'active', 'canceled', 'past_due', etc.
+  subscriptionQuantity: integer("subscription_quantity").default(0),
+  stripeCustomerId: text("stripe_customer_id"),
+  // Organization membership (stored in database, not Clerk metadata for now)
+  organisationId: text("organisation_id"),
+  organisationRole: text("organisation_role"), // 'admin', 'standard', 'owner'
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
