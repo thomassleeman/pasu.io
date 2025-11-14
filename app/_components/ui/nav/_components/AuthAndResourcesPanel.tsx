@@ -6,6 +6,7 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import ResourcesNav from "./resourcesNav/NewResourcesNav";
+import HomeButton from "../../HomeButton";
 
 export default function AuthAndResourcesPanel() {
   return (
@@ -23,6 +24,7 @@ export default function AuthAndResourcesPanel() {
         </SignInButton>
       </SignedOut>
       <SignedIn>
+        <HomeButton />
         <ResourcesNav />
         <UserButton />
       </SignedIn>

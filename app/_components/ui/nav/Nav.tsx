@@ -3,6 +3,7 @@
 import Image from "next/image";
 import brainLogo from "@/components/design/brainLogo.png";
 import AuthAndResourcesPanel from "./_components/AuthAndResourcesPanel";
+import HomeButton from "../HomeButton";
 
 export default async function Nav() {
   return (
@@ -12,7 +13,7 @@ export default async function Nav() {
           <Image
             className="h-5/6 w-auto pr-12 drop-shadow-lg"
             src={brainLogo}
-            alt="MindHub Logo"
+            alt="Pasu Logo"
           />
           <AuthAndResourcesPanel />
         </div>

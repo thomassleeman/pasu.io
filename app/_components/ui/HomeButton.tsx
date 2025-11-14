@@ -5,6 +5,7 @@ import { HomeIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { auth } from "@/firebase/auth/appConfig";
 import Spinner from "@/components/design/Spinner";
+import { set } from "date-fns";
 
 export default function HomeButton() {
   const router = useRouter();
@@ -16,8 +17,10 @@ export default function HomeButton() {
     const currentUser = auth.currentUser;
     if (currentUser) {
       router.push(`/home/${currentUser.uid}`);
+      setIsLoading(false);
     } else {
       router.push("/signin");
+      setIsLoading(false);
     }
   };
 
@@ -25,7 +28,7 @@ export default function HomeButton() {
     <button
       onClick={handleClick}
       disabled={isLoading}
-      className="rounded-md bg-emerald-600 px-4 py-2 text-white"
+      className="rounded-md px-4 py-2 text-emerald-600"
     >
       {isLoading ? (
         <div className="flex items-center justify-center gap-2">
