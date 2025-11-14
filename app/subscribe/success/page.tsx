@@ -2,11 +2,10 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { auth } from "@/firebase/auth/appConfig";
 import Stripe from "stripe";
 import { usePathname } from "next/navigation";
 import Spinner from "@/components/ui/_components/Spinner";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useUser } from "@clerk/nextjs";
 import PaymentSuccessful from "./PaymentSuccessful";
 
 function SuccessPageContent() {
@@ -14,7 +13,8 @@ function SuccessPageContent() {
   const sessionId = searchParams.get("session_id");
   const url = usePathname();
 
-  const [user, authStateloading, error] = useAuthState(auth);
+  const { user, isLoaded } = useUser();
+  const authStateloading = !isLoaded;
   const [session, setSession] = useState<Stripe.Checkout.Session | null>(null);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -24,26 +24,25 @@ function SuccessPageContent() {
   const [errorUi, setErrorUi] = useState(false);
 
   useEffect(() => {
-    const refreshTokenAndCheckClaims = async (retries = 3) => {
+    const checkSubscriptionMetadata = async (retries = 3) => {
       while (retries > 0) {
-        if (!authStateloading && user) {
+        if (isLoaded && user) {
           try {
             if (!user) throw new Error("User not authenticated");
-            //Forces a token refresh to ensure the latest custom claims are included.
-            await user.getIdToken(true);
-            //retrieves the token.
-            const idTokenResult = await user.getIdTokenResult();
-            const quantity =
-              Number(idTokenResult.claims.subscriptionQuantity) || 1;
+
+            // Read subscription quantity from Clerk's public metadata
+            const metadata = user.publicMetadata || {};
+            const quantity = Number(metadata.subscriptionQuantity) || 1;
+
             setSubscriptionQuantity(quantity);
             setClaimsLoading(false);
             return;
           } catch (error) {
-            console.error("Error refreshing claims:", error);
+            console.error("Error reading subscription metadata:", error);
             // Sentry.captureException(error);
             setClaimsLoading(false);
             setErrorUi(true);
-            setSubscriptionQuantity(null); // Fallback if claims are not updated
+            setSubscriptionQuantity(null); // Fallback if metadata is not updated
           }
         }
         retries--;
@@ -51,8 +50,8 @@ function SuccessPageContent() {
       }
     };
 
-    refreshTokenAndCheckClaims();
-  }, [authStateloading, user]);
+    checkSubscriptionMetadata();
+  }, [isLoaded, user]);
 
   useEffect(() => {
     const fetchSessionWithRetry = async (retries = 3) => {

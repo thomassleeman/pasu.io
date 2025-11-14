@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState } from "react";
 //next.js
 import { useRouter } from "next/navigation";
 import {
@@ -8,14 +8,7 @@ import {
   Transition,
   TransitionChild,
 } from "@headlessui/react";
-//firebase
-import { auth } from "@/firebase/auth/appConfig";
-//firestore
-import { doc, deleteDoc } from "firebase/firestore";
-import { db } from "@/firebase/auth/appConfig";
-// React firebase hooks
-import { useDeleteUser } from "react-firebase-hooks/auth";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useUser } from "@clerk/nextjs";
 
 import { useErrors } from "@/hooks/useErrors";
 
@@ -30,28 +23,42 @@ export default function DeleteAccountAlert({
   setOpen: (open: boolean) => void;
 }) {
   const { errors, addError } = useErrors();
-  const [user] = useAuthState(auth);
-  const [deleteUser, deleteUserloading, deleteUserError] = useDeleteUser(auth);
+  const { user } = useUser();
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
 
   const router = useRouter();
 
   const handleDeleteAccount = async () => {
-    try {
-      //delete user from firestore
-      if (user && user.uid) {
-        const userDocRef = doc(db, "users", user.uid);
-        await deleteDoc(userDocRef);
+    if (!user) {
+      addError("User information is missing.");
+      return;
+    }
 
-        // Deleting user from auth
-        await deleteUser();
-        router.push("/");
-        setOpen(false);
-      } else {
-        // Handle the case where user or user.uid is undefined
-        addError("User information is missing.");
+    setDeleteUserLoading(true);
+
+    try {
+      // Call API route to delete user account
+      // The API route will handle:
+      // 1. Deleting user data from Drizzle/PostgreSQL
+      // 2. Deleting user from Clerk
+      const response = await fetch("/api/delete-account", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete account");
       }
+
+      // Redirect to home page after successful deletion
+      router.push("/");
+      setOpen(false);
     } catch (error) {
-      // Check if signInError is an object with a message property of type string
+      // Check if error is an object with a message property of type string
       if (
         typeof error === "object" &&
         error !== null &&
@@ -60,17 +67,13 @@ export default function DeleteAccountAlert({
       ) {
         addError(error.message);
       } else {
-        // If signInError does not match the expected structure, set a default error message
+        // If error does not match the expected structure, set a default error message
         addError("An unexpected error occurred.");
       }
+    } finally {
+      setDeleteUserLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (deleteUserError) {
-      addError(deleteUserError.message);
-    }
-  }, [deleteUserError, addError]);
 
   return (
     <Transition show={open}>
@@ -123,7 +126,7 @@ export default function DeleteAccountAlert({
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="button"
-                    disabled={deleteUserloading || errors.length > 0 || !user}
+                    disabled={deleteUserLoading || errors.length > 0 || !user}
                     onClick={handleDeleteAccount}
                     className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-50 sm:ml-3 sm:w-auto"
                   >

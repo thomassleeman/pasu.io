@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/firebase/auth/appConfig";
+import { useUser } from "@clerk/nextjs";
 import HomeButton from "@/app/_components/ui/HomeButton";
 
 import Spinner from "@/app/_components/ui/_components/Spinner";
@@ -15,8 +14,9 @@ export default function JoinPageContent() {
   const orgId = searchParams.get("org");
   const token = searchParams.get("token");
 
-  // (A) Auth state with react-firebase-hooks/auth
-  const [user, loadingUser, errorAuth] = useAuthState(auth);
+  // (A) Auth state with Clerk
+  const { user, isLoaded } = useUser();
+  const loadingUser = !isLoaded;
 
   // (B) Additional UI states
   const [urlOk, setUrlOk] = useState(true);
@@ -46,7 +46,7 @@ export default function JoinPageContent() {
           body: JSON.stringify({
             orgId,
             token,
-            uid: user?.uid,
+            uid: user?.id, // Clerk user ID
             role: "standard",
           }),
         });

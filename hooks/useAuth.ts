@@ -1,25 +1,19 @@
 // hooks/useAuth.ts
 "use client";
 
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/firebase/auth/appConfig";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function useAuth(redirectTo = "/login") {
-  const [user, setUser] = useState<User | null>(null);
+export default function useAuth(redirectTo = "/sign-in") {
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        router.push(redirectTo);
-      } else {
-        setUser(currentUser);
-      }
-    });
-    return () => unsubscribe();
-  }, [router, redirectTo]);
+    if (isLoaded && !user) {
+      router.push(redirectTo);
+    }
+  }, [isLoaded, user, router, redirectTo]);
 
   return user;
 }

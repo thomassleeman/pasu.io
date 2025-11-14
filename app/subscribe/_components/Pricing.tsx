@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { auth } from "@/firebase/auth/appConfig";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useUser } from "@clerk/nextjs";
 import { loadStripe } from "@stripe/stripe-js";
 import { useRouter } from "next/navigation";
 import useSubscriptionStatus from "@/hooks/useSubscriptionStatus";
@@ -14,9 +13,11 @@ const stripePromise = loadStripe(
 
 const Pricing = () => {
   const router = useRouter();
-  const [user, loading, error] = useAuthState(auth);
+  const { user, isLoaded } = useUser();
   const { status, quantity } = useSubscriptionStatus(); // Destructure subscription info
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const loading = !isLoaded;
 
   // Plan selection state
   const [selectedPlan, setSelectedPlan] = useState("monthly"); // Default to monthly
@@ -64,15 +65,13 @@ const Pricing = () => {
   const handleSubscribe = async () => {
     //TODO: if a user who is trying to pay is unauthenticated for some reason it would be better to explain what is happening rather than just dumping them on the signin page.
     if (!user) {
-      router.push("/signin");
+      router.push("/sign-in");
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      const idToken = await user.getIdToken();
-
       // Determine the priceId and quantity based on the selected plan
       let priceId = "";
       let planQuantity = 1; // Default quantity
@@ -85,11 +84,11 @@ const Pricing = () => {
         planQuantity = quantityState;
       }
 
+      // Note: The API route will handle auth verification using Clerk's auth() function
       const response = await fetch("/api/checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           priceId,
