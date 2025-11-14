@@ -17,7 +17,7 @@
 2. [Architecture Principles](#architecture-principles)
 3. [Project Structure](#project-structure)
 4. [Database Schema](#database-schema)
-5. [Authentication & Migration Status](#authentication--migration-status)
+5. [Authentication](#authentication)
 6. [Key Features](#key-features)
 7. [Development Workflow](#development-workflow)
 8. [Code Patterns & Best Practices](#code-patterns--best-practices)
@@ -40,10 +40,8 @@
 - **Drizzle ORM 0.44.2** - Type-safe database queries
 - **Drizzle Kit 0.31.1** - Schema management and migrations
 
-### Authentication (IN MIGRATION)
-- **Clerk 6.21.0** - Primary auth system (NEW - actively migrating to this)
-- **Firebase Admin 11.9.0** - Legacy auth (BEING PHASED OUT)
-- **Firebase Client 11.3.1** - Legacy client auth (BEING PHASED OUT)
+### Authentication
+- **Clerk 6.21.0** - User authentication and session management
 
 ### Payment & Subscriptions
 - **Stripe 16.12.0** - Payment processing
@@ -150,15 +148,13 @@ pasu.io/
 │   │   └── audioPlayer/         # Audio player component
 │   │
 │   ├── actions/                 # Server Actions
-│   │   ├── authAction.ts        # Auth verification (Firebase - legacy)
 │   │   ├── dbUserAction.ts      # User database operations
 │   │   ├── openaiActions.ts     # OpenAI text-to-speech
 │   │   └── userIdAction.ts      # User ID utilities
 │   │
 │   ├── api/                     # API Routes
 │   │   ├── checkout-session/    # Stripe checkout creation
-│   │   ├── stripe-webhook/      # Stripe event handling
-│   │   └── auth/                # Auth endpoints (legacy)
+│   │   └── stripe-webhook/      # Stripe event handling
 │   │
 │   ├── db/                      # Database configuration
 │   │   ├── schema.ts            # Drizzle schema definitions
@@ -190,9 +186,6 @@ pasu.io/
 ├── hooks/                       # Custom React hooks
 ├── state/                       # Jotai state management
 │   └── store.ts                 # Global atoms
-│
-├── firebase/                    # Firebase config (BEING REMOVED)
-│   └── auth/                    # Firebase auth (LEGACY)
 │
 ├── sanity/                      # Sanity CMS configuration
 │   ├── client.ts                # Sanity client
@@ -383,69 +376,46 @@ const user = await getUserWithRelations(userId, {
 
 ---
 
-## Authentication & Migration Status
+## Authentication
 
-### ⚠️ ACTIVE MIGRATION IN PROGRESS
+PASU.io uses **Clerk** for all authentication and session management. Clerk provides a complete auth solution with user management, session handling, and middleware-based route protection.
 
-**FROM**: Firebase Auth + Firestore
-**TO**: Clerk Auth + Drizzle/PostgreSQL
+### Authentication Features
 
-### Current State
+- **User Registration and Login** - Email/password and OAuth providers
+- **Session Management** - Automatic token refresh and session validation
+- **Middleware Protection** - Route-level authentication enforcement
+- **User Profile Management** - Built-in profile UI components
+- **Metadata Storage** - Custom user data via public/private metadata
 
-#### Clerk (NEW - Primary System)
-- **Status**: Active, primary authentication
-- **Features**:
-  - User registration and login
-  - Session management
-  - Middleware-based route protection
-  - User profile management
-- **Files**:
-  - [middleware.ts](middleware.ts) - Route protection
-  - [app/layout.tsx](app/layout.tsx) - `<ClerkProvider>` wrapper
-  - Routes use `clerkId` for user identification
+### Implementation Pattern
 
-#### Firebase (LEGACY - Being Removed)
-- **Status**: Being phased out, DO NOT extend Firebase code
-- **Remaining Uses**:
-  - Some legacy custom claims (`admin`, `subscriptionStatus`, etc.)
-  - Legacy auth actions in [app/actions/authAction.ts](app/actions/authAction.ts)
-  - Firebase hooks in some components
-- **Files to Eventually Remove**:
-  - `/firebase/` directory
-  - `_adminCredentials.json` (gitignored)
-  - Firebase dependencies in `package.json`
-
-### Migration Guidelines
-
-When working with auth-related code:
-
-1. **New Features**: ALWAYS use Clerk
-2. **Existing Code**: Refactor Firebase → Clerk when touching auth code
-3. **User Identification**: Use `clerkId` from Clerk, not Firebase `uid`
-4. **Sessions**: Use Clerk's `auth()` helper, not Firebase session cookies
-5. **Custom Claims**: Migrate to Clerk's metadata or database fields
+All authenticated pages should use Clerk's `auth()` helper:
 
 ```typescript
-// ✅ NEW: Clerk pattern
 import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { db } from '@db/index';
+import { users } from '@db/schema';
+import { eq } from 'drizzle-orm';
 
 export default async function Page() {
+  // Get the authenticated user's Clerk ID
   const { userId } = await auth();
   if (!userId) redirect('/sign-in');
 
+  // Fetch user data from database
   const user = await db.query.users.findFirst({
     where: eq(users.clerkId, userId)
   });
-}
 
-// ❌ OLD: Firebase pattern (DO NOT USE for new code)
-import { checkSessionCookie } from '@actions/authAction';
-
-export default async function Page() {
-  const firebaseUser = await checkSessionCookie();
-  // ...
+  return <div>Welcome, {user.email}</div>;
 }
 ```
+
+### User Identification
+
+All users are identified by their `clerkId` field in the database, which corresponds to Clerk's user ID. The `users` table stores the mapping between Clerk IDs and application-specific user data.
 
 ### Route Protection
 
@@ -864,7 +834,6 @@ await db.insert(journalEntries).values({
 
 | File | Purpose |
 |------|---------|
-| [app/actions/authAction.ts](app/actions/authAction.ts) | Auth verification (legacy) |
 | [app/actions/dbUserAction.ts](app/actions/dbUserAction.ts) | User database operations |
 | [app/actions/openaiActions.ts](app/actions/openaiActions.ts) | OpenAI text-to-speech |
 | [app/actions/userIdAction.ts](app/actions/userIdAction.ts) | User ID utilities |
@@ -907,13 +876,6 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 
 # OpenAI
 OPENAI_API_KEY="sk-..."
-
-# Firebase (LEGACY - will be removed)
-FIREBASE_SECRET_KEY='{...}'  # JSON string of service account
-NEXT_PUBLIC_FIREBASE_API_KEY="..."
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."
-# ... other Firebase config
 ```
 
 ### Sensitive Files (Gitignored)
@@ -921,7 +883,6 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."
 These files are excluded from version control:
 
 - `.env` and `.env*.local` - Environment variables
-- `_adminCredentials.json` - Firebase admin credentials
 - `/.clerk/` - Clerk configuration (may contain secrets)
 - `.env.sentry-build-plugin` - Sentry configuration
 
@@ -931,16 +892,7 @@ These files are excluded from version control:
 
 ## Known Issues & Gotchas
 
-### 1. Firebase Migration in Progress
-
-**Issue**: Some components still use Firebase auth hooks
-**Action**: When touching auth code, refactor to use Clerk
-**Files to Watch**:
-- Components with `useAuth` from Firebase
-- `authAction.ts` (legacy auth verification)
-- Custom claims logic (migrate to Clerk metadata)
-
-### 2. Navigation Height Calculation
+### 1. Navigation Height Calculation
 
 From the README notes:
 
@@ -951,7 +903,7 @@ className="h-[calc(100vh-72px)]"
 
 The navigation bar is 72px tall. Use this calculation for full-height layouts.
 
-### 3. User Data Query Pattern
+### 2. User Data Query Pattern
 
 **Issue**: Fetching user data with all relations can be expensive
 **Solution**: Use `getUserWithRelations()` with explicit limits
@@ -967,7 +919,7 @@ const user = await getUserWithRelations(userId, {
 const user = await getUserWithRelations(userId);
 ```
 
-### 4. Encrypted Data Handling
+### 3. Encrypted Data Handling
 
 **Issue**: Encrypted fields need decryption before display
 **Pattern**: Decrypt on read, encrypt on write
@@ -984,7 +936,7 @@ const user = await getUserWithRelations(userId);
 // Always decrypt before displaying to user
 ```
 
-### 5. Sanity Image URLs
+### 4. Sanity Image URLs
 
 **Issue**: Sanity images need proper URL transformation
 **Solution**: Use `@sanity/image-url` utility
@@ -997,7 +949,7 @@ const builder = imageUrlBuilder(client);
 const imageUrl = builder.image(source).width(800).url();
 ```
 
-### 6. Chart.js Data Limits
+### 5. Chart.js Data Limits
 
 From the README notes:
 
@@ -1005,19 +957,13 @@ From the README notes:
 
 When displaying charts, always limit data to reasonable timeframes for performance.
 
-### 7. Organization Logo Removal
+### 6. Organization Logo Removal
 
 From the README notes:
 
 > `user.organisation.logoUrl` - To display the organisation logo in the navigation bar. **get rid of this!**
 
 This feature should be removed from the navigation bar.
-
-### 8. Clerk User ID vs Firebase UID
-
-**Issue**: Database uses `clerkId`, but some code references `uid`
-**Action**: Always use `clerkId` for new code
-**Migration Path**: Update references from `uid` to `clerkId`
 
 ---
 
@@ -1077,7 +1023,7 @@ The `userAtom` (Jotai) is used throughout the application for client-side user s
 - `user.exercises` - Exercise progress
 - `user.stressRating` - Stress ratings
 
-**Migration Note**: As we move away from Firebase, `userAtom` should be refactored to use data from Drizzle/PostgreSQL rather than Firebase.
+**Note**: The `userAtom` stores client-side user state. For server-side operations, always fetch fresh data from Drizzle/PostgreSQL.
 
 ### Uninstalled Dependencies (from README)
 
@@ -1125,7 +1071,7 @@ git push                 # Push to remote
 2. **Type Safety**: Strict TypeScript, leverage Drizzle type inference
 3. **Modern React**: Avoid `useEffect`, use React 19 patterns
 4. **Security**: Encrypt sensitive data, use environment variables
-5. **Clean Migration**: Replace Firebase with Clerk progressively
+5. **Clean Architecture**: Use Clerk for auth, Drizzle for data persistence
 6. **Performance**: Limit data queries, optimize images
 7. **User Privacy**: HIPAA-aware data handling, encryption at rest
 
@@ -1143,7 +1089,7 @@ For project-specific questions, refer to the codebase and this document.
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: November 2025
 **Project Status**: Active Development
 **Next.js Version**: 15.5.3
 **React Version**: 19.1.0
