@@ -11,10 +11,10 @@ export default async function WritingExercise({
   params,
   children,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
   children: React.ReactNode;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const exerciseData = await getWritingExerciseData(slug);
 
