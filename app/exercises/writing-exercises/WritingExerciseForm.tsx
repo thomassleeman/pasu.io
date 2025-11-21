@@ -3,9 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-// Firebase
-import { app } from "@firebase/auth/appConfig";
-import { doc, getFirestore, getDoc } from "firebase/firestore";
 // Sanity
 import { PortableText } from "@portabletext/react";
 import portableTextComponents from "@/sanity/schemas/portableText/portableTextComponents";
@@ -15,6 +12,7 @@ import GetStartedButton from "./GetStartedButton";
 // Functions
 import updateDatabase from "./updateDatabase";
 // Actions
+import { getExerciseProgress } from "@actions/userDataActions";
 import getFormattedDate from "@actions/getFormattedDate";
 // Icons
 import {
@@ -118,79 +116,52 @@ export default function WritingExerciseForm({
     async function fetchInitialData() {
       setLoading(true);
       try {
-        // 1. Get user ID
-        const response = await fetch("/api/accessUserId", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
+        // 1. Get exercise progress from database
+        const exerciseData = await getExerciseProgress(exerciseSlug);
 
-        if (!response.ok) {
-          router.push("/signin");
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const { userID } = await response.json();
-
-        // 2. Get Firestore doc
-        const db = getFirestore(app);
-        const userRef = doc(db, "users", userID);
-        const userDoc = await getDoc(userRef);
-
-        if (!userDoc.exists()) {
+        if (!exerciseData || !exerciseData.encryptedUserInput) {
           setLoading(false);
           return;
         }
 
-        const data = userDoc.data() || {};
-        const previousInput = data.exercises?.[exerciseSlug];
-        if (!previousInput) {
-          setLoading(false);
-          return;
-        }
-
-        // 3. Decode date
-        const previousInputDate = previousInput.createdAt
-          ? getFormattedDate(previousInput.createdAt.seconds)
+        // 2. Decode date
+        const previousInputDate = exerciseData.createdAt
+          ? getFormattedDate(Math.floor(exerciseData.createdAt.getTime() / 1000))
           : undefined;
 
-        // 4. Decrypt user inputs
-        if (previousInput.encryptedUserInput) {
-          const encryptedUserInputs = previousInput.encryptedUserInput;
-          const encryptedKeys = Object.keys(encryptedUserInputs);
+        // 3. Decrypt user inputs
+        const encryptedUserInputs = exerciseData.encryptedUserInput;
+        const encryptedKeys = Object.keys(encryptedUserInputs);
 
-          const encryptedInputsArray = encryptedKeys.map((key) => ({
-            key,
-            iv: encryptedUserInputs[key].iv,
-            encryptedData: encryptedUserInputs[key].encryptedData,
-          }));
+        const encryptedInputsArray = encryptedKeys.map((key) => ({
+          key,
+          iv: (encryptedUserInputs as any)[key].iv,
+          encryptedData: (encryptedUserInputs as any)[key].encryptedData,
+        }));
 
-          const decryptionResponse = await fetch("/api/decryptText", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ encryptedInputs: encryptedInputsArray }),
-          });
-          if (!decryptionResponse.ok) {
-            throw new Error(
-              `Decryption error! status: ${decryptionResponse.status}`
-            );
-          }
+        const decryptionResponse = await fetch("/api/decryptText", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ encryptedInputs: encryptedInputsArray }),
+        });
 
-          const { decryptedOutputs } = await decryptionResponse.json();
-          const decryptedInputs: DecryptedInputs = {};
-          encryptedInputsArray.forEach((input, idx) => {
-            decryptedInputs[input.key] = decryptedOutputs[idx];
-          });
-
-          setPreviousInputData({
-            decryptedUserInput: decryptedInputs,
-            createdAt: previousInputDate,
-            // If storing progress in Firestore, you could read it here
-            // completedPrompts: previousInput.completedPrompts,
-            // totalPrompts: previousInput.totalPrompts,
-            // completionPercentage: previousInput.completionPercentage,
-          });
-          setUserInputs(decryptedInputs);
+        if (!decryptionResponse.ok) {
+          throw new Error(
+            `Decryption error! status: ${decryptionResponse.status}`
+          );
         }
+
+        const { decryptedOutputs } = await decryptionResponse.json();
+        const decryptedInputs: DecryptedInputs = {};
+        encryptedInputsArray.forEach((input, idx) => {
+          decryptedInputs[input.key] = decryptedOutputs[idx];
+        });
+
+        setPreviousInputData({
+          decryptedUserInput: decryptedInputs,
+          createdAt: previousInputDate,
+        });
+        setUserInputs(decryptedInputs);
 
         setLoading(false);
       } catch (error) {

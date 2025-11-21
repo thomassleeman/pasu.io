@@ -385,6 +385,29 @@ export async function updateCourseResourceData(data: {
 }
 
 /**
+ * Get existing exercise progress for the current user
+ * @param exerciseSlug - The exercise slug to look up
+ * @returns Exercise data or null if not found
+ */
+export async function getExerciseProgress(exerciseSlug: string) {
+  try {
+    const user = await getCurrentUser();
+
+    const existingExercise = await db.query.exercises.findFirst({
+      where: and(
+        eq(exercises.userId, user.id),
+        eq(exercises.exerciseSlug, exerciseSlug)
+      ),
+    });
+
+    return existingExercise || null;
+  } catch (error) {
+    console.error('Error fetching exercise progress:', error);
+    return null;
+  }
+}
+
+/**
  * Create a burnout assessment
  * @param data - Assessment data with two assessments containing encrypted dimension scores
  * @returns Success status
