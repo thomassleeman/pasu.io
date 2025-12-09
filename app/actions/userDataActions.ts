@@ -1,6 +1,6 @@
-'use server';
+"use server";
 
-import { db } from '@db/index';
+import { db } from "@db/index";
 import {
   users,
   journalEntries,
@@ -8,10 +8,10 @@ import {
   courses,
   exercises,
   burnoutAssessments,
-} from '@db/schema';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and, gte, lt } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+} from "@db/schema";
+import { auth } from "@clerk/nextjs/server";
+import { eq, and, gte, lt } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 /**
  * Helper function to get the current user from the database
@@ -20,7 +20,7 @@ import { revalidatePath } from 'next/cache';
 async function getCurrentUser() {
   const { userId } = await auth();
   if (!userId) {
-    throw new Error('Unauthorized: User not authenticated');
+    throw new Error("Unauthorized: User not authenticated");
   }
 
   const user = await db.query.users.findFirst({
@@ -28,40 +28,10 @@ async function getCurrentUser() {
   });
 
   if (!user) {
-    throw new Error('User not found in database');
+    throw new Error("User not found in database");
   }
 
   return user;
-}
-
-/**
- * Create a new journal entry
- * @param data - Journal entry data including journal name, date key, and encrypted content
- * @returns Success status
- */
-export async function createJournalEntry(data: {
-  journalName: string;
-  dateKey: string;
-  encryptedUserInput: any;
-}) {
-  try {
-    const user = await getCurrentUser();
-
-    await db.insert(journalEntries).values({
-      userId: user.id,
-      journalName: data.journalName,
-      dateKey: data.dateKey,
-      encryptedUserInput: data.encryptedUserInput,
-    });
-
-    revalidatePath('/home/[clerkId]', 'page');
-    return { success: true };
-  } catch (error) {
-    console.error('Error creating journal entry:', error);
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to create journal entry'
-    );
-  }
 }
 
 /**
@@ -73,7 +43,7 @@ export async function createJournalEntry(data: {
 export async function createStressRating(rating: number) {
   try {
     if (rating < 1 || rating > 10) {
-      throw new Error('Rating must be between 1 and 10');
+      throw new Error("Rating must be between 1 and 10");
     }
 
     const user = await getCurrentUser();
@@ -100,12 +70,12 @@ export async function createStressRating(rating: number) {
       rating,
     });
 
-    revalidatePath('/home/[clerkId]', 'page');
+    revalidatePath("/home/[clerkId]", "page");
     return { success: true };
   } catch (error) {
-    console.error('Error creating stress rating:', error);
+    console.error("Error creating stress rating:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to create stress rating'
+      error instanceof Error ? error.message : "Failed to create stress rating"
     );
   }
 }
@@ -150,32 +120,30 @@ export async function updateCourseProgress(data: {
       });
     }
 
-    revalidatePath('/home/[clerkId]', 'page');
-    revalidatePath(`/courses/${data.courseSlug}`, 'page');
+    revalidatePath("/home/[clerkId]", "page");
+    revalidatePath(`/courses/${data.courseSlug}`, "page");
     return { success: true };
   } catch (error) {
-    console.error('Error updating course progress:', error);
+    console.error("Error updating course progress:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to update course progress'
+      error instanceof Error
+        ? error.message
+        : "Failed to update course progress"
     );
   }
 }
 
 /**
- * Update or create exercise progress
- * @param data - Exercise data including slug, completed prompts, completion percentage, and encrypted input
+ * Start or reactivate an exercise (prompts-only - no text storage)
+ * Tracks which exercises are active for the user
+ * @param data - Exercise data with exercise slug only
  * @returns Success status
  */
-export async function updateExerciseProgress(data: {
-  exerciseSlug: string;
-  completedPrompts: number;
-  completionPercentage: number;
-  encryptedUserInput?: any;
-}) {
+export async function startExercise(data: { exerciseSlug: string }) {
   try {
     const user = await getCurrentUser();
 
-    // Check if exercise exists for user
+    // Check if exercise already exists for this user
     const existingExercise = await db.query.exercises.findFirst({
       where: and(
         eq(exercises.userId, user.id),
@@ -184,34 +152,27 @@ export async function updateExerciseProgress(data: {
     });
 
     if (existingExercise) {
-      // Update existing exercise
+      // Exercise already active - just update timestamp
       await db
         .update(exercises)
-        .set({
-          completedPrompts: data.completedPrompts,
-          completionPercentage: data.completionPercentage,
-          encryptedUserInput: data.encryptedUserInput,
-          updatedAt: new Date(),
-        })
+        .set({ updatedAt: new Date() })
         .where(eq(exercises.id, existingExercise.id));
     } else {
-      // Insert new exercise
+      // Create new active exercise entry
       await db.insert(exercises).values({
         userId: user.id,
         exerciseSlug: data.exerciseSlug,
-        completedPrompts: data.completedPrompts,
-        completionPercentage: data.completionPercentage,
-        encryptedUserInput: data.encryptedUserInput,
+        status: "active",
       });
     }
 
-    revalidatePath('/home/[clerkId]', 'page');
-    revalidatePath(`/exercises/${data.exerciseSlug}`, 'page');
+    revalidatePath("/home/[clerkId]", "page");
+    revalidatePath(`/exercises/${data.exerciseSlug}`, "page");
     return { success: true };
   } catch (error) {
-    console.error('Error updating exercise progress:', error);
+    console.error("Error starting exercise:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to update exercise progress'
+      error instanceof Error ? error.message : "Failed to start exercise"
     );
   }
 }
@@ -234,36 +195,7 @@ export async function getCourseProgress(courseSlug: string) {
 
     return existingCourse || null;
   } catch (error) {
-    console.error('Error fetching course progress:', error);
-    return null;
-  }
-}
-
-/**
- * Get encrypted resource data for a specific resource within a course
- * @param courseSlug - The course slug
- * @param resourceSlug - The resource/exercise slug
- * @returns Encrypted resource data with creation timestamp, or null if not found
- */
-export async function getCourseResourceData(courseSlug: string, resourceSlug: string) {
-  try {
-    const user = await getCurrentUser();
-
-    const existingCourse = await db.query.courses.findFirst({
-      where: and(
-        eq(courses.userId, user.id),
-        eq(courses.courseSlug, courseSlug)
-      ),
-    });
-
-    if (!existingCourse || !existingCourse.encryptedUserInput) {
-      return null;
-    }
-
-    const resourceData = (existingCourse.encryptedUserInput as any)[resourceSlug];
-    return resourceData || null;
-  } catch (error) {
-    console.error('Error fetching course resource data:', error);
+    console.error("Error fetching course progress:", error);
     return null;
   }
 }
@@ -289,7 +221,7 @@ export async function markResourceCompleted(data: {
     });
 
     if (!existingCourse) {
-      throw new Error('Course not found. Please enroll in the course first.');
+      throw new Error("Course not found. Please enroll in the course first.");
     }
 
     // Update the resourcesCompleted record
@@ -306,13 +238,15 @@ export async function markResourceCompleted(data: {
       })
       .where(eq(courses.id, existingCourse.id));
 
-    revalidatePath('/home/[clerkId]', 'page');
-    revalidatePath(`/courses/${data.courseSlug}`, 'page');
+    revalidatePath("/home/[clerkId]", "page");
+    revalidatePath(`/courses/${data.courseSlug}`, "page");
     return { success: true };
   } catch (error) {
-    console.error('Error marking resource completed:', error);
+    console.error("Error marking resource completed:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to mark resource completed'
+      error instanceof Error
+        ? error.message
+        : "Failed to mark resource completed"
     );
   }
 }
@@ -342,21 +276,11 @@ export async function updateCourseResourceData(data: {
 
     // If course doesn't exist, we need to create it first
     if (!existingCourse) {
-      throw new Error('Course not found. Please enroll in the course first.');
+      throw new Error("Course not found. Please enroll in the course first.");
     }
 
     // Get existing resource data (stored in encryptedUserInput JSON field)
-    const existingResourceData = (existingCourse.encryptedUserInput as any) || {};
     const existingResourcesCompleted = existingCourse.resourcesCompleted || {};
-
-    // Update the resource data
-    const updatedResourceData = {
-      ...existingResourceData,
-      [data.resourceSlug]: {
-        encryptedUserInput: data.encryptedUserInput,
-        createdAt: new Date().toISOString(),
-      },
-    };
 
     // Update completion status
     const updatedResourcesCompleted = {
@@ -367,19 +291,20 @@ export async function updateCourseResourceData(data: {
     await db
       .update(courses)
       .set({
-        encryptedUserInput: updatedResourceData,
         resourcesCompleted: updatedResourcesCompleted,
         updatedAt: new Date(),
       })
       .where(eq(courses.id, existingCourse.id));
 
-    revalidatePath('/home/[clerkId]', 'page');
-    revalidatePath(`/courses/${data.courseSlug}`, 'page');
-    return { success: true, createdAt: updatedResourceData[data.resourceSlug].createdAt };
+    revalidatePath("/home/[clerkId]", "page");
+    revalidatePath(`/courses/${data.courseSlug}`, "page");
+    return { success: true };
   } catch (error) {
-    console.error('Error updating course resource data:', error);
+    console.error("Error updating course resource data:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to update course resource data'
+      error instanceof Error
+        ? error.message
+        : "Failed to update course resource data"
     );
   }
 }
@@ -412,12 +337,14 @@ export async function createBurnoutAssessment(data: {
       assessment2: data.assessment2,
     });
 
-    revalidatePath('/home/[clerkId]', 'page');
+    revalidatePath("/home/[clerkId]", "page");
     return { success: true };
   } catch (error) {
-    console.error('Error creating burnout assessment:', error);
+    console.error("Error creating burnout assessment:", error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to create burnout assessment'
+      error instanceof Error
+        ? error.message
+        : "Failed to create burnout assessment"
     );
   }
 }

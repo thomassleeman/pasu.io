@@ -7,6 +7,7 @@ import {
   boolean,
   json,
   uuid,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -20,17 +21,23 @@ export const users = pgTable("users", {
 });
 
 // Journal entries table
-export const journalEntries = pgTable("journal_entries", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  journalName: text("journal_name").notNull(),
-  dateKey: text("date_key").notNull(),
-  encryptedUserInput: json("encrypted_user_input"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    journalName: text("journal_name").notNull(), // One entry per journal per user
+    status: text("status").notNull().default("active"), // Just tracks if journal is active
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    // Add unique constraint: user can only have one entry per journal
+    uniqueUserJournal: unique().on(table.userId, table.journalName),
+  })
+);
 
 // Courses table
 export const courses = pgTable("courses", {
@@ -43,24 +50,28 @@ export const courses = pgTable("courses", {
   resourcesCompleted: json("resources_completed")
     .$type<Record<string, boolean>>()
     .default({}),
-  encryptedUserInput: json("encrypted_user_input"), // Stores per-resource encrypted data for self-reflections
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Exercises table
-export const exercises = pgTable("exercises", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  exerciseSlug: text("exercise_slug").notNull(),
-  completedPrompts: integer("completed_prompts").notNull().default(0),
-  completionPercentage: integer("completion_percentage").notNull().default(0),
-  encryptedUserInput: json("encrypted_user_input"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const exercises = pgTable(
+  "exercises",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    exerciseSlug: text("exercise_slug").notNull(),
+    status: text("status").notNull().default("active"), // Just tracks if exercise is active
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    // User can only have one entry per exercise
+    uniqueUserExercise: unique().on(table.userId, table.exerciseSlug),
+  })
+);
 
 // Stress ratings table
 export const stressRatings = pgTable("stress_ratings", {

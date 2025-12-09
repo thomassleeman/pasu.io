@@ -34,12 +34,12 @@ function HeadNav({ exercise }: { exercise: WritingExercise }) {
   return (
     <>
       <div className="z-50 rounded-lg border-y border-gray-200 bg-transparent py-2">
-        <Link href={`/exercises/writing-exercises/${slug.current}`}>
-          <div className="mx-2 my-2 flex items-center space-x-6 text-slate-700 md:mx-0">
-            <PencilSquareIcon className="h-6 w-6" />
-            <h3 className="font-mono md:text-lg lg:text-xl">{title}</h3>
-          </div>
-        </Link>
+        {/* <Link href={`/exercises/writing-exercises/${slug.current}`}> */}
+        <div className="mx-2 my-2 flex items-center space-x-6 text-slate-700 md:mx-0">
+          <PencilSquareIcon className="h-6 w-6" />
+          <h3 className="font-mono md:text-lg lg:text-xl">{title}</h3>
+        </div>
+        {/* </Link> */}
 
         {/* <div className="">
           <div className="border-y border-gray-200">

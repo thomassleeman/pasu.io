@@ -22,9 +22,9 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ sections }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const NavContent = () => (
-    <nav className="space-y-4 font-mono">
+    <nav className="max-w-sm space-y-4 font-mono">
       <h2 className="text-sm font-semibold text-emerald-700">
-        Exercise Sections
+        Course Sections
       </h2>
       <ul className="space-y-3">
         {sections.map((section) => (
@@ -62,7 +62,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ sections }) => {
       {mobileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/50 font-mono lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
           <aside className="fixed right-0 top-0 z-50 h-full w-80 overflow-y-auto border-l border-gray-200 bg-white p-6 shadow-xl lg:hidden">

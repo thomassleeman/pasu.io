@@ -14,17 +14,20 @@
 ## Table of Contents
 
 1. [Tech Stack](#tech-stack)
-2. [Architecture Principles](#architecture-principles)
-3. [Project Structure](#project-structure)
-4. [Database Schema](#database-schema)
-5. [Authentication & Migration Status](#authentication--migration-status)
-6. [Key Features](#key-features)
-7. [Development Workflow](#development-workflow)
-8. [Code Patterns & Best Practices](#code-patterns--best-practices)
-9. [Important Files & Directories](#important-files--directories)
-10. [Environment Setup](#environment-setup)
-11. [Known Issues & Gotchas](#known-issues--gotchas)
-12. [Testing](#testing)
+2. [Design Philosophy](#design-philosophy)
+3. [Architecture Principles](#architecture-principles)
+4. [Migration Status](#migration-status)
+5. [Project Structure](#project-structure)
+6. [Database Schema](#database-schema)
+7. [Authentication & Migration Status](#authentication--migration-status)
+8. [Key Features](#key-features)
+9. [Development Workflow](#development-workflow)
+10. [Migration Guidelines for Developers](#migration-guidelines-for-developers)
+11. [Code Patterns & Best Practices](#code-patterns--best-practices)
+12. [Important Files & Directories](#important-files--directories)
+13. [Environment Setup](#environment-setup)
+14. [Known Issues & Gotchas](#known-issues--gotchas)
+15. [Testing](#testing)
 
 ---
 
@@ -40,10 +43,11 @@
 - **Drizzle ORM 0.44.2** - Type-safe database queries
 - **Drizzle Kit 0.31.1** - Schema management and migrations
 
-### Authentication (IN MIGRATION)
-- **Clerk 6.21.0** - Primary auth system (NEW - actively migrating to this)
-- **Firebase Admin 11.9.0** - Legacy auth (BEING PHASED OUT)
-- **Firebase Client 11.3.1** - Legacy client auth (BEING PHASED OUT)
+### Authentication (IN FINAL MIGRATION PHASE)
+- **Clerk 6.21.0** - Primary auth system ✅ ACTIVE
+- **Firebase Admin 11.9.0** - Legacy auth ⚠️ TO BE REMOVED
+- **Firebase Client 11.3.1** - Legacy client auth ⚠️ TO BE REMOVED
+- **react-firebase-hooks 5.1.1** - Firebase hooks ⚠️ TO BE REMOVED
 
 ### Payment & Subscriptions
 - **Stripe 16.12.0** - Payment processing
@@ -72,6 +76,39 @@
 ### Forms & Validation
 - **Formik 2.4.1** - Form management
 - **Yup 1.2.0** - Schema validation
+
+---
+
+## Design Philosophy
+
+### Prompts-Only Platform
+
+PASU.io is intentionally designed as a **prompt delivery system**, not a content storage platform.
+
+**Core Principles:**
+1. **User Privacy**: We don't store user writing, eliminating data breach concerns
+2. **Tool Flexibility**: Users can write in their preferred tools (journal, notes app, paper)
+3. **Reduced Complexity**: No text storage, encryption, or retrieval systems to maintain
+4. **Focus on Quality**: Development effort goes to prompt quality, not text management
+
+**What We Store:**
+- ✅ User account data (email, Clerk ID)
+- ✅ Progress tracking (which exercises started, completion %)
+- ✅ Stress ratings (numerical scale 1-10)
+- ✅ Burnout assessment scores (encrypted)
+- ✅ Course resource completion status
+
+**What We Don't Store:**
+- ❌ Journal text entries
+- ❌ Exercise written responses
+- ❌ Course self-reflection text
+- ❌ Any user-generated content
+
+**User Experience:**
+- Users see prompts/questions on screen
+- Users write in external tools of their choice
+- Users click "Mark Complete" or "Get Started" to track progress
+- Dashboard shows in-progress exercises, not content
 
 ---
 
@@ -132,6 +169,91 @@ function Component() {
 - Prefer `layout.tsx` for shared UI
 - Use `loading.tsx` and `error.tsx` for boundaries
 
+### 5. Privacy-First Design
+- **No user content storage**: Platform delivers prompts, users write externally
+- **Minimal data collection**: Track status and completion only, not content
+- **Encryption only for metrics**: Burnout assessment scores are encrypted, but user writing is never stored
+- **User flexibility**: Users choose their preferred writing tools
+
+### 6. Prompts-Only Data Flow
+
+**Old Pattern (Deprecated):**
+```
+User Input → Encryption → Database Storage → Decryption → Display
+```
+
+**New Pattern (Current):**
+```
+Display Prompts → User Writes Externally → Track Status Only
+                                           ↓
+                                   Mark Started/Complete
+```
+
+**Implementation Example:**
+```typescript
+// ❌ OLD: Store encrypted text (deprecated)
+await createJournalEntry({
+  journalName: "daily",
+  dateKey: "2025-01-15",
+  encryptedUserInput: { encryptedData: "...", iv: "..." }
+});
+
+// ✅ NEW: Track active journal only
+await createJournalEntry({
+  journalName: "daily",
+  status: "active"  // One record per journal per user
+});
+```
+
+---
+
+## Migration Status
+
+### Completed Migrations ✅
+
+1. **Clerk Authentication Core**
+   - All new code uses Clerk
+   - Middleware configured
+   - Webhooks operational
+   - Database properly linked to Clerk IDs
+
+2. **Database Schema (Partial)**
+   - Users table uses `clerkId`
+   - All relations properly configured
+   - Drizzle ORM fully operational
+
+### In-Progress Migrations ⚠️
+
+#### Phase 1: Prompts-Only Transformation
+**Status:** Planning complete, implementation pending
+
+**Goals:**
+- Remove all text input functionality
+- Remove encryption infrastructure for text
+- Simplify schema (remove `encryptedUserInput` fields)
+- Update UI to display prompts only
+- Track completion status, not content
+
+**Affected Areas:**
+- Database: `journalEntries`, `courses`, `exercises` tables
+- Server Actions: `userDataActions.ts` functions
+- UI Components: `WritingExerciseForm.tsx`, `TextAreaForm.tsx`
+- API Routes: All encryption endpoints
+- Types: `types/user.ts`, `types/journal.ts`
+
+#### Phase 2: Complete Firebase Removal
+**Status:** Final cleanup pending
+
+**Remaining Tasks:**
+- Remove Firebase SDK packages
+- Delete `/firebase/` directory
+- Remove legacy server actions
+- Remove client-side Firebase state management
+- Update components using Firebase hooks
+- Clean environment variables
+
+**See:** [MIGRATION_PLAN.md](MIGRATION_PLAN.md) for detailed implementation checklist.
+
 ---
 
 ## Project Structure
@@ -150,12 +272,16 @@ pasu.io/
 │   │   └── audioPlayer/         # Audio player component
 │   │
 │   ├── actions/                 # Server Actions
-│   │   ├── authAction.ts        # Auth verification (Firebase - legacy)
-│   │   ├── dbUserAction.ts      # User database operations
-│   │   ├── openaiActions.ts     # OpenAI text-to-speech
-│   │   └── userIdAction.ts      # User ID utilities
+│   │   ├── authAction.ts        # ⚠️ DEPRECATED - Firebase auth (to be removed)
+│   │   ├── dbUserAction.ts      # ⚠️ DEPRECATED - Firebase user data (to be removed)
+│   │   ├── userIdAction.ts      # ⚠️ DEPRECATED - Firebase UID (to be removed)
+│   │   ├── userDataActions.ts   # ✅ User database operations (Clerk-based)
+│   │   └── openaiActions.ts     # OpenAI text-to-speech
 │   │
 │   ├── api/                     # API Routes
+│   │   ├── encryptText/         # ⚠️ DEPRECATED - to be removed
+│   │   ├── decryptText/         # ⚠️ DEPRECATED - to be removed
+│   │   ├── encryption/          # ⚠️ DEPRECATED - to be removed
 │   │   ├── checkout-session/    # Stripe checkout creation
 │   │   ├── stripe-webhook/      # Stripe event handling
 │   │   └── auth/                # Auth endpoints (legacy)
@@ -189,9 +315,11 @@ pasu.io/
 ├── types/                       # TypeScript type definitions
 ├── hooks/                       # Custom React hooks
 ├── state/                       # Jotai state management
-│   └── store.ts                 # Global atoms
+│   ├── store.ts                 # Global atoms (stress ratings, etc.)
+│   ├── SetUser.tsx              # ⚠️ DEPRECATED - Firebase listener (to be removed)
+│   └── userListener.ts          # ⚠️ DEPRECATED - Firestore listener (to be removed)
 │
-├── firebase/                    # Firebase config (BEING REMOVED)
+├── firebase/                    # ⚠️ DEPRECATED - Entire directory to be removed
 │   └── auth/                    # Firebase auth (LEGACY)
 │
 ├── sanity/                      # Sanity CMS configuration
@@ -245,19 +373,28 @@ Primary user table linked to Clerk authentication.
 ```
 
 #### `journalEntries`
-Encrypted journal entries with date-based organization.
+⚠️ **Migration in Progress**: Tracks active journal status (prompts-only approach).
 
+**Current Schema (Post-Migration):**
 ```typescript
 {
   id: uuid (PK),
   userId: uuid (FK → users),
   journalName: text,          // Journal type/name
-  dateKey: text,              // Date identifier (YYYY-MM-DD)
-  encryptedUserInput: json,   // { encryptedData, iv }
+  status: text,               // "active" - tracks if journal is in progress
   createdAt: timestamp,
-  updatedAt: timestamp
+  updatedAt: timestamp,
+
+  // UNIQUE constraint on (userId, journalName)
+  // One entry per journal per user
 }
 ```
+
+**Old Schema (Deprecated - being removed):**
+- `dateKey` field (date tracking) - REMOVED
+- `encryptedUserInput` (user text) - REMOVED
+
+**Purpose**: Track which journals a user is actively working on, not the content they write.
 
 #### `courses`
 User progress tracking for educational courses.
@@ -271,24 +408,29 @@ User progress tracking for educational courses.
   resourcesCompleted: json,   // Record<string, boolean>
   createdAt: timestamp,
   updatedAt: timestamp
+
+  // REMOVED in migration: encryptedUserInput
 }
 ```
 
 #### `exercises`
-Writing exercise completion tracking.
+Writing exercise completion tracking (prompts-only).
 
 ```typescript
 {
   id: uuid (PK),
   userId: uuid (FK → users),
   exerciseSlug: text,         // Sanity CMS exercise identifier
-  completedPrompts: integer,
+  completedPrompts: integer,  // Number of prompts completed
   completionPercentage: integer,
-  encryptedUserInput: json,   // { encryptedData, iv }
   createdAt: timestamp,
   updatedAt: timestamp
+
+  // REMOVED in migration: encryptedUserInput
 }
 ```
+
+**Note**: Exercises track completion progress, not user responses. Users write externally.
 
 #### `stressRatings`
 Daily stress level tracking.
@@ -303,7 +445,9 @@ Daily stress level tracking.
 ```
 
 #### `burnoutAssessments`
-Burnout assessment results (encrypted).
+Burnout assessment results (encrypted scores).
+
+⚠️ **Important**: This is the ONLY table that still uses encryption (for numerical scores, not text).
 
 ```typescript
 {
@@ -318,10 +462,12 @@ Burnout assessment results (encrypted).
 Each assessment dimension is encrypted:
 ```typescript
 {
-  encryptedData: string,
-  iv: string  // Initialization vector for AES encryption
+  encryptedData: string,      // Encrypted numerical score
+  iv: string                   // Initialization vector for AES encryption
 }
 ```
+
+**Note**: Only burnout assessment scores are encrypted. No text content is stored or encrypted.
 
 #### `recommendedArticles`
 Personalized article recommendations.
@@ -366,6 +512,36 @@ const newUser: NewUser = {
 };
 ```
 
+**Updated Type Definitions (Post-Migration):**
+
+```typescript
+// UserWithRelations type (updated for prompts-only)
+export type UserWithRelations = User & {
+  journalEntries: Pick<
+    JournalEntry,
+    "id" | "journalName" | "status" | "createdAt" | "updatedAt"
+    // REMOVED: dateKey
+  >[];
+  courses: Pick<
+    Course,
+    "id" | "courseSlug" | "courseName" | "resourcesCompleted" | "createdAt" | "updatedAt"
+    // REMOVED: encryptedUserInput
+  >[];
+  exercises: Pick<
+    Exercise,
+    "id" | "exerciseSlug" | "completedPrompts" | "completionPercentage" | "createdAt" | "updatedAt"
+    // REMOVED: encryptedUserInput
+  >[];
+  stressRatings: Pick<StressRating, "id" | "rating" | "createdAt">[];
+  burnoutAssessments: Pick<
+    BurnoutAssessment,
+    "id" | "userId" | "createdAt" | "assessment1" | "assessment2"
+    // KEEP: Encrypted assessment scores
+  >[];
+  recommendedArticles: Pick<RecommendedArticle, "articleSlug" | "createdAt">[];
+};
+```
+
 ### Complex Queries
 
 For queries with relations, use the custom query builder:
@@ -385,35 +561,41 @@ const user = await getUserWithRelations(userId, {
 
 ## Authentication & Migration Status
 
-### ⚠️ ACTIVE MIGRATION IN PROGRESS
+### ⚠️ MIGRATION NEARING COMPLETION
 
 **FROM**: Firebase Auth + Firestore
 **TO**: Clerk Auth + Drizzle/PostgreSQL
 
 ### Current State
 
-#### Clerk (NEW - Primary System)
-- **Status**: Active, primary authentication
-- **Features**:
+#### Clerk (NEW - Primary System) ✅
+- **Status**: Active and primary for authentication
+- **Implementation**: COMPLETE
+- **What's Working**:
   - User registration and login
-  - Session management
-  - Middleware-based route protection
-  - User profile management
+  - Session management via middleware
+  - Webhook-based database sync
+  - All new code uses Clerk
 - **Files**:
-  - [middleware.ts](middleware.ts) - Route protection
-  - [app/layout.tsx](app/layout.tsx) - `<ClerkProvider>` wrapper
-  - Routes use `clerkId` for user identification
+  - [middleware.ts](middleware.ts) - Route protection ✅
+  - [app/layout.tsx](app/layout.tsx) - `<ClerkProvider>` wrapper ✅
+  - [app/api/webhooks/clerk/route.ts](app/api/webhooks/clerk/route.ts) - Webhook handler ✅
+  - All routes use `clerkId` for user identification ✅
 
-#### Firebase (LEGACY - Being Removed)
-- **Status**: Being phased out, DO NOT extend Firebase code
-- **Remaining Uses**:
-  - Some legacy custom claims (`admin`, `subscriptionStatus`, etc.)
-  - Legacy auth actions in [app/actions/authAction.ts](app/actions/authAction.ts)
-  - Firebase hooks in some components
-- **Files to Eventually Remove**:
+#### Firebase (LEGACY - Being Removed) ⚠️
+- **Status**: Still present but NO LONGER IN USE for new features
+- **Remaining Components to Remove**:
+  - Firebase SDK packages in [package.json](package.json)
   - `/firebase/` directory
-  - `_adminCredentials.json` (gitignored)
-  - Firebase dependencies in `package.json`
+  - Legacy server actions: [authAction.ts](app/actions/authAction.ts), [userIdAction.ts](app/actions/userIdAction.ts), [dbUserAction.ts](app/actions/dbUserAction.ts)
+  - Client-side: [SetUser.tsx](state/SetUser.tsx), [userListener.ts](state/userListener.ts)
+  - Firebase-dependent components (DeleteAccountAlert, etc.)
+  - Environment variables (all `FIREBASE_*` and `NEXT_PUBLIC_FIREBASE_*`)
+
+**IMPORTANT FOR DEVELOPERS:**
+- ✅ DO NOT add any new Firebase dependencies
+- ✅ When touching auth code, remove Firebase and use Clerk
+- ✅ All [userDataActions.ts](app/actions/userDataActions.ts) already use Clerk correctly
 
 ### Migration Guidelines
 
@@ -482,12 +664,14 @@ export default clerkMiddleware(async (auth, request) => {
 
 ### 2. Journaling System
 - **Location**: [app/journaling/](app/journaling/)
-- **Description**: Date-based journaling with multiple journal types
-- **Data**: Encrypted user input stored in `journalEntries` table
+- **Description**: Prompt delivery for journaling with status tracking (prompts-only approach)
+- **Data**: Active journal status stored in `journalEntries` table (no text content)
 - **Features**:
-  - Calendar view of entries
+  - Display journal prompts
   - Multiple journal types per user
-  - Encrypted storage with IV
+  - One entry per journal per user
+  - Track which journals are active
+  - Users write in external tools
 
 ### 3. Stress Rating Tracking
 - **Location**: Integrated into dashboard
@@ -499,11 +683,12 @@ export default clerkMiddleware(async (auth, request) => {
 - **Source**: Sanity CMS
 - **Types**:
   - **Articles** ([app/articles/](app/articles/)) - Educational blog posts
-  - **Courses** ([app/courses/](app/courses/)) - Multi-resource learning paths
-  - **Exercises** ([app/exercises/](app/exercises/)) - Writing exercises
+  - **Courses** ([app/courses/](app/courses/)) - Multi-resource learning paths with prompts
+  - **Exercises** ([app/exercises/](app/exercises/)) - Writing exercises (prompts-only)
   - **Burnout Stories** ([app/burnout-stories/](app/burnout-stories/)) - User testimonials
-- **Progress Tracking**: Courses and exercises track completion in database
+- **Progress Tracking**: Courses and exercises track completion status (not content)
 - **Audio**: Text-to-speech conversion for articles via OpenAI
+- **User Writing**: Users complete exercises in their own journals/apps, not in the platform
 
 ### 5. AI Chatbot (PASU AI)
 - **Location**: [app/pasu-ai/](app/pasu-ai/)
@@ -541,10 +726,12 @@ export default clerkMiddleware(async (auth, request) => {
   - Welcome panel with user stats
   - Activity tracking
   - Data visualizations (stress, burnout)
-  - Calendar view
-  - Course/exercise progress
+  - Calendar view (for stress ratings)
+  - Course/exercise progress (completion status, not content)
+  - Active journals display
   - Latest articles carousel
 - **Data Source**: `getUserWithRelations()` query
+- **Note**: Dashboard shows progress and metrics, never user-written content
 
 ---
 
@@ -611,6 +798,59 @@ npx drizzle-kit studio
 Opens Drizzle Studio for visual database exploration.
 
 **Important**: When you modify [app/db/schema.ts](app/db/schema.ts), always generate and apply migrations.
+
+---
+
+## Migration Guidelines for Developers
+
+### Working with the Codebase During Migration
+
+The codebase is currently in a **controlled migration state**. Follow these rules:
+
+#### ✅ DO:
+1. **Use Clerk for all auth**: Import from `@clerk/nextjs/server`
+2. **Use `userDataActions.ts`**: These functions are migration-complete
+3. **Track progress, not content**: Only store completion status
+4. **Display prompts**: Show questions/prompts, not text inputs
+5. **Ask before major changes**: Migration is in progress
+
+#### ❌ DON'T:
+1. **Don't use Firebase**: No new Firebase dependencies or extensions
+2. **Don't store user text**: No text inputs, no encryption, no storage
+3. **Don't use legacy actions**: Avoid `authAction.ts`, `dbUserAction.ts`, `userIdAction.ts`
+4. **Don't add encryption**: Text encryption is being removed
+5. **Don't extend deprecated APIs**: Check file status before modifying
+
+#### 🔍 Identifying Deprecated Code:
+
+**Search patterns to avoid:**
+```bash
+# Firebase (avoid these)
+grep -r "firebase" app/
+grep -r "useAuthState" app/
+grep -r "onAuthStateChanged" app/
+
+# Encryption (avoid these - except burnout assessments)
+grep -r "encryptText" app/
+grep -r "encryptedUserInput" app/
+
+# Legacy actions (avoid these)
+grep -r "authAction" app/
+grep -r "dbUserAction" app/
+```
+
+**Files marked for removal:**
+- `/firebase/` directory
+- `app/actions/authAction.ts`
+- `app/actions/userIdAction.ts`
+- `app/actions/dbUserAction.ts`
+- `state/SetUser.tsx`
+- `state/userListener.ts`
+- `app/api/encryptText/`
+- `app/api/decryptText/`
+- `app/api/encryption/`
+
+**See [MIGRATION_PLAN.md](MIGRATION_PLAN.md) for detailed checklist.**
 
 ---
 
@@ -798,25 +1038,37 @@ export default function Loading() {
 }
 ```
 
-### Encryption Pattern
+### Encryption Pattern (Limited Use)
 
-Sensitive data uses AES encryption with initialization vectors:
+⚠️ **Encryption is ONLY used for burnout assessment scores.**
 
+**What is encrypted:**
+- ✅ Burnout assessment dimensions (detachment, exhaustion, etc.)
+- ✅ Stored in `burnoutAssessments` table
+
+**What is NOT encrypted (and not stored):**
+- ❌ User journal text (not stored at all)
+- ❌ Exercise responses (not stored at all)
+- ❌ Course self-reflection text (not stored at all)
+
+**Pattern for burnout assessments:**
 ```typescript
-// Encryption happens client-side or in API routes
-const encrypted = {
-  encryptedData: 'base64_encoded_ciphertext',
-  iv: 'base64_encoded_iv'
+// Burnout assessment structure (ONLY place encryption is used)
+const assessment = {
+  detachment: { encryptedData: "...", iv: "..." },
+  emotionalImpairment: { encryptedData: "...", iv: "..." },
+  exhaustion: { encryptedData: "...", iv: "..." },
+  cognitiveImpairment: { encryptedData: "...", iv: "..." }
 };
 
-// Store in database
-await db.insert(journalEntries).values({
+await db.insert(burnoutAssessments).values({
   userId,
-  journalName: 'daily',
-  dateKey: '2025-01-15',
-  encryptedUserInput: encrypted
+  assessment1: assessment,
+  // ...
 });
 ```
+
+**Migration Note**: Text encryption infrastructure has been removed as part of the prompts-only migration. Only numeric assessment data is encrypted.
 
 ---
 
@@ -855,19 +1107,32 @@ await db.insert(journalEntries).values({
 
 ### API Routes
 
-| File | Purpose |
-|------|---------|
-| [app/api/checkout-session/](app/api/checkout-session/) | Stripe checkout creation |
-| [app/api/stripe-webhook/](app/api/stripe-webhook/) | Stripe event handling |
+| File | Purpose | Status |
+|------|---------|--------|
+| [app/api/checkout-session/](app/api/checkout-session/) | Stripe checkout creation | ✅ Active |
+| [app/api/stripe-webhook/](app/api/stripe-webhook/) | Stripe event handling | ✅ Active |
+| [app/api/webhooks/clerk/](app/api/webhooks/clerk/) | Clerk webhook handler | ✅ Active |
+
+### API Routes (Encryption - DEPRECATED)
+
+| File | Purpose | Status |
+|------|---------|--------|
+| [app/api/encryptText/route.ts](app/api/encryptText/) | Text encryption | ⚠️ TO BE REMOVED |
+| [app/api/decryptText/route.ts](app/api/decryptText/) | Text decryption | ⚠️ TO BE REMOVED |
+| [app/api/encryption/encryptNumber/route.ts](app/api/encryption/encryptNumber/) | Number encryption | ⚠️ TO BE REMOVED |
+| [app/api/encryption/decryptNumber/route.ts](app/api/encryption/decryptNumber/) | Number decryption | ⚠️ TO BE REMOVED |
+
+**Note:** These routes are no longer needed after prompts-only migration.
 
 ### Server Actions
 
-| File | Purpose |
-|------|---------|
-| [app/actions/authAction.ts](app/actions/authAction.ts) | Auth verification (legacy) |
-| [app/actions/dbUserAction.ts](app/actions/dbUserAction.ts) | User database operations |
-| [app/actions/openaiActions.ts](app/actions/openaiActions.ts) | OpenAI text-to-speech |
-| [app/actions/userIdAction.ts](app/actions/userIdAction.ts) | User ID utilities |
+| File | Purpose | Status |
+|------|---------|--------|
+| [app/actions/userDataActions.ts](app/actions/userDataActions.ts) | User database operations (Clerk-based) | ✅ Active |
+| [app/actions/openaiActions.ts](app/actions/openaiActions.ts) | OpenAI text-to-speech | ✅ Active |
+| [app/actions/authAction.ts](app/actions/authAction.ts) | Auth verification (Firebase - legacy) | ⚠️ TO BE REMOVED |
+| [app/actions/dbUserAction.ts](app/actions/dbUserAction.ts) | Firebase user operations | ⚠️ TO BE REMOVED |
+| [app/actions/userIdAction.ts](app/actions/userIdAction.ts) | Firebase UID utilities | ⚠️ TO BE REMOVED |
 
 ### Sanity CMS
 
@@ -892,6 +1157,7 @@ DATABASE_URL="postgresql://..."  # Neon PostgreSQL connection string
 # Clerk (Authentication)
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 CLERK_SECRET_KEY="sk_test_..."
+CLERK_WEBHOOK_SIGNING_SECRET="whsec_..."  # Required for webhooks
 NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
 NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 
@@ -908,12 +1174,13 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 # OpenAI
 OPENAI_API_KEY="sk-..."
 
-# Firebase (LEGACY - will be removed)
-FIREBASE_SECRET_KEY='{...}'  # JSON string of service account
-NEXT_PUBLIC_FIREBASE_API_KEY="..."
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."
-# ... other Firebase config
+# ⚠️ DEPRECATED - To be removed during migration
+ENCRYPTION_KEY="..."  # No longer needed after prompts-only migration
+FIREBASE_SECRET_KEY='{...}'  # Remove after Firebase cleanup
+NEXT_PUBLIC_FIREBASE_API_KEY="..."  # Remove
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."  # Remove
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."  # Remove
+# ... all other Firebase vars should be removed
 ```
 
 ### Sensitive Files (Gitignored)
@@ -967,24 +1234,7 @@ const user = await getUserWithRelations(userId, {
 const user = await getUserWithRelations(userId);
 ```
 
-### 4. Encrypted Data Handling
-
-**Issue**: Encrypted fields need decryption before display
-**Pattern**: Decrypt on read, encrypt on write
-
-```typescript
-// Data structure in database
-{
-  encryptedUserInput: {
-    encryptedData: "...",
-    iv: "..."
-  }
-}
-
-// Always decrypt before displaying to user
-```
-
-### 5. Sanity Image URLs
+### 4. Sanity Image URLs
 
 **Issue**: Sanity images need proper URL transformation
 **Solution**: Use `@sanity/image-url` utility
@@ -996,6 +1246,19 @@ import { client } from '@sanity/client';
 const builder = imageUrlBuilder(client);
 const imageUrl = builder.image(source).width(800).url();
 ```
+
+### 5. Firebase References Still Present (Temporary)
+
+**Issue**: Some code still references Firebase despite Clerk being primary
+**Status**: These are being actively removed as part of migration
+**Files with Firebase**:
+- `app/actions/authAction.ts`, `userIdAction.ts`, `dbUserAction.ts`
+- `state/SetUser.tsx`, `state/userListener.ts`
+- `/firebase/` directory
+- Components using `useAuthState`, `useDeleteUser` from Firebase hooks
+
+**Action**: DO NOT extend or rely on Firebase code. Use Clerk for all new features.
+**Timeline**: Firebase removal is scheduled as part of migration completion.
 
 ### 6. Chart.js Data Limits
 
@@ -1041,13 +1304,22 @@ This is an area for future development. When implementing tests, consider:
 1. **Server Actions** - Database mutations, auth checks
 2. **Database Queries** - Drizzle ORM queries
 3. **Stripe Webhooks** - Payment flow verification
-4. **Encryption/Decryption** - Data security
+4. **Encryption/Decryption** - Burnout assessment encryption only
 5. **Sanity CMS Integration** - Content fetching
 6. **Critical User Flows**:
    - User registration → onboarding → dashboard
    - Burnout assessment completion
    - Subscription purchase
-   - Journal entry creation
+   - Journal prompt display and status tracking
+7. **Prompts-Only Flow**:
+   - Exercise "Get Started" without text input
+   - Course self-reflections display prompts
+   - Journal prompts display
+   - Progress tracking works without content storage
+8. **No Encryption Dependencies**:
+   - Verify encryption routes removed
+   - Check no text encryption in codebase
+   - Confirm burnout assessments still use encryption (numbers only)
 
 ### Future Testing Setup
 
@@ -1124,10 +1396,11 @@ git push                 # Push to remote
 1. **Server-First**: Prefer Server Components and Server Actions
 2. **Type Safety**: Strict TypeScript, leverage Drizzle type inference
 3. **Modern React**: Avoid `useEffect`, use React 19 patterns
-4. **Security**: Encrypt sensitive data, use environment variables
-5. **Clean Migration**: Replace Firebase with Clerk progressively
-6. **Performance**: Limit data queries, optimize images
-7. **User Privacy**: HIPAA-aware data handling, encryption at rest
+4. **Privacy by Design**: Prompts-only platform, minimal data storage
+5. **Security**: Encrypt metrics only (burnout scores), no text storage
+6. **Clean Migration**: Replace Firebase with Clerk progressively (nearing completion)
+7. **Performance**: Limit data queries, optimize images
+8. **User Flexibility**: Users choose their writing tools, we provide prompts
 
 ---
 
@@ -1143,7 +1416,8 @@ For project-specific questions, refer to the codebase and this document.
 
 ---
 
-**Last Updated**: January 2025
-**Project Status**: Active Development
+**Last Updated**: January 2025 (Migration Status Updated)
+**Project Status**: Active Development - Migration in Progress
 **Next.js Version**: 15.5.3
 **React Version**: 19.1.0
+**Migration Reference**: See [MIGRATION_PLAN.md](MIGRATION_PLAN.md) for detailed implementation plan

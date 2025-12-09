@@ -22,17 +22,25 @@ export default async function CourseLayout({
   const courseData = await getCourseData(courseSlug, "layout");
 
   return (
-    <>
-      <div className="container mx-auto mb-auto sm:px-6 lg:px-8">
-        <div className="mt-4 flex flex-col gap-y-12 lg:gap-y-28">
-          <div className="sticky top-0">
-            <CourseHeadNav course={courseData} />
-          </div>
-          {children}
-          <CourseFootNav course={courseData} />
-        </div>
-      </div>
-      <Footer />
-    </>
+    <section className="mx-2 mb-32">
+      <CourseHeadNav course={courseData} />
+
+      {children}
+    </section>
   );
+
+  // return (
+  //   <>
+  //     <div className="container mx-auto mb-auto sm:px-6 lg:px-8">
+  //       <div className="mt-4 flex flex-col gap-y-12 lg:gap-y-28">
+  //         <div className="sticky top-0">
+  //           <CourseHeadNav course={courseData} />
+  //         </div>
+  //         {children}
+  //         <CourseFootNav course={courseData} />
+  //       </div>
+  //     </div>
+  //     <Footer />
+  //   </>
+  // );
 }

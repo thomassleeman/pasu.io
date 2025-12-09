@@ -1,9 +1,9 @@
 import React from "react";
 import Image from "next/image";
 import { getJournalData } from "../getJournalsData";
-import JournalWithCalendar from "@/app/journaling/JournalWithCalendar";
 import { journalOutlineFromSanity } from "@/types/journal";
 import SidebarNav from "../SidebarNav";
+import { ChevronRightIcon } from "@heroicons/react/20/solid";
 
 //Sanity
 import { PortableText } from "@portabletext/react";
@@ -36,7 +36,7 @@ export default async function JournalingPage({ params }: PageProps) {
   const { name, headerImage, description, promptCategories, exampleEntries } =
     journalOutline;
 
-  console.log;
+  console.log("journalOutline:", journalOutline);
 
   const headerImageUrl = headerImage ? urlForImage(headerImage) : null;
 
@@ -64,14 +64,7 @@ export default async function JournalingPage({ params }: PageProps) {
             <details className="group my-4" open>
               <summary className="cursor-pointer list-none text-sm font-semibold text-emerald-700 hover:text-emerald-500 focus:outline-none">
                 <div className="flex items-center">
-                  <svg
-                    className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" />
-                  </svg>
+                  <ChevronRightIcon className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90" />
                   <span className="select-none">Introduction</span>
                 </div>
               </summary>
@@ -95,14 +88,8 @@ export default async function JournalingPage({ params }: PageProps) {
                 <details className="group my-4" open={false}>
                   <summary className="cursor-pointer list-none text-sm font-semibold text-emerald-700 hover:text-emerald-500 focus:outline-none">
                     <div className="flex items-center">
-                      <svg
-                        className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" />
-                      </svg>
+                      <ChevronRightIcon className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90" />
+
                       <span className="select-none">Example</span>
                     </div>
                   </summary>
@@ -114,7 +101,28 @@ export default async function JournalingPage({ params }: PageProps) {
               </div>
             </details>
           </div>
-          <JournalWithCalendar journalOutlineFromSanity={journalOutline} />
+
+          {promptCategories.map((category) => (
+            <div
+              key={category.name}
+              id={category.name.toLowerCase().replace(/\s+/g, "-")}
+              className="space-y-6"
+            >
+              <h4 className="border-b border-gray-200 pb-2 text-xl font-semibold text-gray-900">
+                {category.name}
+              </h4>
+              {category.prompts.map((prompt) => (
+                <div key={prompt._key} className="space-y-3">
+                  <label
+                    htmlFor={`textarea-${prompt._key}`}
+                    className="block text-base font-medium text-gray-700"
+                  >
+                    <PortableText value={prompt.prompt} />
+                  </label>
+                </div>
+              ))}
+            </div>
+          ))}
         </article>
       </div>
       <SidebarNav promptCategories={promptCategories} />

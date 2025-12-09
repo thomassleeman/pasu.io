@@ -8,7 +8,7 @@ import portableTextComponents from "@/sanity/schemas/portableText/portableTextCo
 import { urlForImage } from "@/sanity/lib/image";
 
 //components
-import WritingExerciseForm from "../WritingExerciseForm";
+import WritingExercisePrompts from "../WritingExercisePrompts";
 import SidebarNav from "../SidebarNav";
 
 export const revalidate = 3600; // revalidate the data cache at most every hour
@@ -63,10 +63,7 @@ export default async function WritingExercisePage({
               components={portableTextComponents}
             />
           </div>
-          <WritingExerciseForm
-            exerciseSlug={slug}
-            prompts={journalingSections}
-          />
+          <WritingExercisePrompts prompts={journalingSections} />
         </article>
       </div>
       <SidebarNav sections={sections} />

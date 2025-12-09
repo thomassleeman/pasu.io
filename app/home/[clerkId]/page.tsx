@@ -7,6 +7,8 @@ import Calendar from "./_components/Calendar";
 import ContentCarousel from "@articles/_components/ContentCarousel";
 import Visualisations from "./_components/Visualisations";
 import { serialiseData } from "@/utils/serialiseData";
+import ChatContainer from "../../pasu-ai/_components/ChatContainer";
+
 import {
   getSortedLimitedArticlesData,
   getRecommendedArticlesData,
@@ -56,7 +58,8 @@ export default async function Home({ params }: PageProps) {
 
               <div className="grid grid-cols-1 gap-14">
                 <Anouncements user={user} />
-                <Calendar user={serialiseData(user)} />
+                <ChatContainer />
+                {/* <Calendar user={serialiseData(user)} /> */}
               </div>
             </div>
           </div>
