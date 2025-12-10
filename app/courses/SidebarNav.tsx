@@ -7,38 +7,68 @@ import {
   ChevronRightIcon,
   Bars3Icon,
   XMarkIcon,
+  BookOpenIcon,
+  PencilIcon,
+  ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 
 interface SidebarNavProps {
   sections: {
-    id: string;
+    slug: string;
     title: string;
+    type?: "article" | "selfReflectionExercise";
     prompts?: { id: string; title: string }[];
   }[];
+  courseSlug: string;
 }
 
-const SidebarNav: React.FC<SidebarNavProps> = ({ sections }) => {
+const SidebarNav: React.FC<SidebarNavProps> = ({ sections, courseSlug }) => {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const getResourcePath = (section: SidebarNavProps["sections"][0]) => {
+    if (section.type === "article") {
+      return `/courses/${courseSlug}/articles/${section.slug}`;
+    } else if (section.type === "selfReflectionExercise") {
+      return `/courses/${courseSlug}/self-reflections/${section.slug}`;
+    }
+    return `#${section.slug}`;
+  };
+
   const NavContent = () => (
     <nav className="max-w-sm space-y-4 font-mono">
+      {/* Back to Course Overview Link */}
+      <Link
+        href={`/courses/${courseSlug}`}
+        onClick={() => setMobileMenuOpen(false)}
+        className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:border-emerald-300"
+      >
+        <ArrowLeftIcon className="h-4 w-4 flex-shrink-0" />
+        <span>Course Overview</span>
+      </Link>
+
       <h2 className="text-sm font-semibold text-emerald-700">
         Course Sections
       </h2>
       <ul className="space-y-3">
         {sections.map((section) => (
-          <li key={section.id}>
+          <li key={section.slug}>
             <Link
-              href={`#${section.id}`}
+              href={getResourcePath(section)}
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
-                pathname.includes(section.id)
+                pathname.includes(section.slug)
                   ? "bg-emerald-50 font-medium text-emerald-800"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
+              {section.type === "article" ? (
+                <BookOpenIcon className="h-4 w-4 flex-shrink-0" />
+              ) : section.type === "selfReflectionExercise" ? (
+                <PencilIcon className="h-4 w-4 flex-shrink-0" />
+              ) : (
+                <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
+              )}
               <span>{section.title}</span>
             </Link>
           </li>

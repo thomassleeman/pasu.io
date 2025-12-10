@@ -1,15 +1,5 @@
-//Firestore
-import { getFirestore, DocumentSnapshot } from "firebase-admin/firestore";
-//Firebase config
-import { adminInit } from "@/firebase/auth/adminConfig";
-//server actions
-import userIdAction from "@actions/userIdAction";
-
 //sanity
 import { client } from "@/sanity/client";
-
-adminInit();
-const db = getFirestore();
 
 const contentCarouselProjection = `title,
 "id":_id,
@@ -56,46 +46,46 @@ export async function getSortedLimitedArticlesData(
 
 /* ----------------------------------------------------------------------------------------- */
 
-export async function getRecommendedArticlesData() {
-  // a) Get the user from firebase and check for recommended articles
-  const userId = await userIdAction();
-  if (!userId) {
-    return;
-  }
+// export async function getRecommendedArticlesData() {
+//   // a) Get the user from firebase and check for recommended articles
+//   const userId = await userIdAction();
+//   if (!userId) {
+//     return;
+//   }
 
-  const userRef = db.collection("users").doc(userId);
+//   const userRef = db.collection("users").doc(userId);
 
-  const doc = await userRef.get();
-  if (!doc.exists) {
-    return;
-  }
+//   const doc = await userRef.get();
+//   if (!doc.exists) {
+//     return;
+//   }
 
-  const user = doc.data();
-  if (!user) {
-    return;
-  }
+//   const user = doc.data();
+//   if (!user) {
+//     return;
+//   }
 
-  if (!user.articles) {
-    return;
-  }
+//   if (!user.articles) {
+//     return;
+//   }
 
-  const recommendedArticles = user.articles.recommended;
-  if (!recommendedArticles) {
-    return;
-  }
+//   const recommendedArticles = user.articles.recommended;
+//   if (!recommendedArticles) {
+//     return;
+//   }
 
-  //When putting an array directly into a template string JS converts the array to a string by concatenating all elements with commas. As a result we need to restore quotes and put the list back inside square brackets.
-  const recommendedArticlesQuery = recommendedArticles
-    .map((slug: string) => `"${slug}"`)
-    .join(", ");
+//   //When putting an array directly into a template string JS converts the array to a string by concatenating all elements with commas. As a result we need to restore quotes and put the list back inside square brackets.
+//   const recommendedArticlesQuery = recommendedArticles
+//     .map((slug: string) => `"${slug}"`)
+//     .join(", ");
 
-  // b) Get the recommended articles from sanity
-  const query = `*[_type == "article" && slug.current in [${recommendedArticlesQuery}]]{${contentCarouselProjection}}`;
+//   // b) Get the recommended articles from sanity
+//   const query = `*[_type == "article" && slug.current in [${recommendedArticlesQuery}]]{${contentCarouselProjection}}`;
 
-  const articles = await client.fetch(query);
+//   const articles = await client.fetch(query);
 
-  return articles;
-}
+//   return articles;
+// }
 
 /* ----------------------------------------------------------------------------------------- */
 //this excludes course documents.
@@ -213,12 +203,24 @@ export async function getArticlesForGivenCategories(categories: string[]) {
             title,
            date,
            "slug": slug.current,
-          "category":category->{name}.name,  
+          "category":category->{name}.name,
            headerImage,
            "author": author->{name}.name,
             "summary": summary[0].children[0].text,
             audio,
           }`;
+
+  const articles = await client.fetch(query);
+
+  return articles;
+}
+
+/* ----------------------------------------------------------------------------------------- */
+/* Get all non-course articles for the /articles page */
+/* ----------------------------------------------------------------------------------------- */
+
+export async function getAllNonCourseArticles() {
+  const query = `*[_type == "article" && classification->_type != "course"] | order(date desc){${contentCarouselProjection}}`;
 
   const articles = await client.fetch(query);
 

@@ -68,60 +68,39 @@ export default async function Article({
   return (
     <>
       <article
-        className={`${martel.className} prose prose-slate mx-auto dark:prose-invert md:prose-lg prose-img:rounded-xl`}
+        className={`${martel.className} prose prose-slate mx-auto mt-12 dark:prose-invert md:prose-lg prose-img:rounded-xl`}
       >
-        <div className="px-6 font-sans">
+        <div className="font-sans">
           <h1 className="mt-4 text-slate-800">{title}</h1>
-          {/* <div className="not-prose flex items-center">
-            <div className="flex items-center gap-x-2">
-              <Image
-                src={authorImageUrl || brainLogo}
-                alt={`author image for ${
-                  author?.name || "the author of this article"
-                }`}
-                width={60}
-                height={60}
-                className="h-12 w-12 rounded-full"
-              />
-              <p className="mt-0">{author?.name || "Burnout Project Team"}</p>
-            </div>
-            <p className="mx-3">&ndash;</p>
-            <p className="mt-0">{getFormattedDate(date)}</p>
-          </div> */}
+
           <div className="flex items-center justify-between">
-            {/* <p className="not-prose text-green-800">
-              {readingTime ? `${Math.round(readingTime)} min read` : null}
-            </p> */}
             {audio && <AudioPlayer audio={audio} />}
           </div>
         </div>
-        {/* <Share title={title} articleType="article" /> */}
-        <div className="mb-12 aspect-video h-full w-auto">
+
+        <div className="mb-12 aspect-square h-72 w-72">
           <Image
-            width={1200}
-            height={630}
             src={headerImageUrl || defaultImage}
             alt={`header image for the article ${title}`}
-            priority={true}
-            className="h-full w-full object-cover"
-          ></Image>
+            height={250}
+            width={250}
+            className="h-full w-full object-cover outline outline-offset-2 outline-emerald-700/50"
+          />
         </div>
-
         <div className="px-6 first-letter:float-left first-letter:mr-2 first-letter:text-6xl first-letter:font-extrabold first-letter:text-green-900">
           <PortableText value={content} components={portableTextComponents} />
         </div>
-
         {showModal && study && (
           <StudyModal currentUrl={currentUrl} studyId={study} />
         )}
+        {quiz && (
+          <QuizModal
+            quiz={quiz}
+            articleSlug={articleSlug}
+            courseSlug={classification.slug}
+          />
+        )}
       </article>
-      {quiz && (
-        <QuizModal
-          quiz={quiz}
-          articleSlug={articleSlug}
-          courseSlug={classification.slug}
-        />
-      )}
     </>
   );
 }

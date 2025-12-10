@@ -3,7 +3,6 @@
 import Image from "next/image";
 import brainLogo from "@/components/design/brainLogo.png";
 import AuthAndResourcesPanel from "./_components/AuthAndResourcesPanel";
-import HomeButton from "../HomeButton";
 
 export default async function Nav() {
   return (

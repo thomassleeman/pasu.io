@@ -4,6 +4,7 @@ import { getJournalData } from "../getJournalsData";
 import { journalOutlineFromSanity } from "@/types/journal";
 import SidebarNav from "../SidebarNav";
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
+import { ArrowLongDownIcon } from "@heroicons/react/24/outline";
 
 //Sanity
 import { PortableText } from "@portabletext/react";
@@ -36,8 +37,6 @@ export default async function JournalingPage({ params }: PageProps) {
   const { name, headerImage, description, promptCategories, exampleEntries } =
     journalOutline;
 
-  console.log("journalOutline:", journalOutline);
-
   const headerImageUrl = headerImage ? urlForImage(headerImage) : null;
 
   // Validate the journal outline
@@ -65,7 +64,7 @@ export default async function JournalingPage({ params }: PageProps) {
               <summary className="cursor-pointer list-none text-sm font-semibold text-emerald-700 hover:text-emerald-500 focus:outline-none">
                 <div className="flex items-center">
                   <ChevronRightIcon className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90" />
-                  <span className="select-none">Introduction</span>
+                  <span className="select-none font-mono">Introduction</span>
                 </div>
               </summary>
               <div className="group-closed:translate-y-2 group-closed:opacity-0 mb-12 mt-4 aspect-square h-72 w-72 transform opacity-100 transition-all duration-300 ease-in-out group-open:translate-y-0">
@@ -77,9 +76,7 @@ export default async function JournalingPage({ params }: PageProps) {
                   className="h-full w-full object-cover outline outline-offset-2 outline-emerald-700/50"
                 />
               </div>
-              <h2 id="introduction" className="py-2 font-thin">
-                Introduction
-              </h2>
+
               <PortableText
                 value={description}
                 components={portableTextComponents}
@@ -90,7 +87,7 @@ export default async function JournalingPage({ params }: PageProps) {
                     <div className="flex items-center">
                       <ChevronRightIcon className="mr-2 h-5 w-5 transform transition duration-200 ease-in-out group-open:rotate-90" />
 
-                      <span className="select-none">Example</span>
+                      <span className="select-none font-mono">Example</span>
                     </div>
                   </summary>
                   <PortableText
@@ -111,16 +108,23 @@ export default async function JournalingPage({ params }: PageProps) {
               <h4 className="border-b border-gray-200 pb-2 text-xl font-semibold text-gray-900">
                 {category.name}
               </h4>
-              {category.prompts.map((prompt) => (
-                <div key={prompt._key} className="space-y-3">
-                  <label
-                    htmlFor={`textarea-${prompt._key}`}
-                    className="block text-base font-medium text-gray-700"
-                  >
-                    <PortableText value={prompt.prompt} />
-                  </label>
-                </div>
-              ))}
+              <section>
+                {category.prompts.map((prompt, index) => (
+                  <div key={prompt._key} className="flex flex-col items-center">
+                    <div className="my-6 w-full rounded-lg border-2 border-emerald-700 p-4">
+                      <div className="text-sky-800">
+                        <PortableText
+                          value={prompt.prompt}
+                          components={portableTextComponents}
+                        />
+                      </div>
+                    </div>
+                    {category.prompts.length - 1 > index ? (
+                      <ArrowLongDownIcon className="h-12 w-12 text-sky-500" />
+                    ) : null}
+                  </div>
+                ))}
+              </section>
             </div>
           ))}
         </article>

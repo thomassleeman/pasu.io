@@ -7,12 +7,10 @@ import Calendar from "./_components/Calendar";
 import ContentCarousel from "@articles/_components/ContentCarousel";
 import Visualisations from "./_components/Visualisations";
 import { serialiseData } from "@/utils/serialiseData";
-import ChatContainer from "../../pasu-ai/_components/ChatContainer";
+// import ChatContainer from "../../pasu-ai/_components/ChatContainer";
+import BurnoutAssessmentChatbot from "@/app/chatbot/burnout-assessment/BurnoutAssessmentChatbot";
 
-import {
-  getSortedLimitedArticlesData,
-  getRecommendedArticlesData,
-} from "@articles/getArticlesData";
+import { getSortedLimitedArticlesData } from "@articles/getArticlesData";
 import { getUserWithRelations } from "@/lib/queries/getUserWithRelations";
 
 interface PageProps {
@@ -58,8 +56,9 @@ export default async function Home({ params }: PageProps) {
 
               <div className="grid grid-cols-1 gap-14">
                 <Anouncements user={user} />
-                <ChatContainer />
+                {/* <ChatContainer /> */}
                 {/* <Calendar user={serialiseData(user)} /> */}
+                <BurnoutAssessmentChatbot />
               </div>
             </div>
           </div>

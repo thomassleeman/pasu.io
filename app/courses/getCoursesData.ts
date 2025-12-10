@@ -1,16 +1,13 @@
 "use server";
-//Firestore
-import { getFirestore } from "firebase-admin/firestore";
-//Firebase config
-import { adminInit } from "@/firebase/auth/adminConfig";
-//server actions
-import userIdAction from "@actions/userIdAction";
+//Clerk
+import { auth } from "@clerk/nextjs/server";
+//Database
+import { db } from "@/app/db";
+import { courses, users } from "@/app/db/schema";
+import { eq, and } from "drizzle-orm";
 
 //sanity
 import { client } from "@/sanity/client";
-
-adminInit();
-const db = getFirestore();
 
 /* ----------------------------------------------------------------------------------------- */
 /* COURSE PAGE QUERIES */
@@ -78,32 +75,33 @@ export async function getNamedCoursesData(slugs: string[]) {
 /* ----------------------------------------------------------------------------------------- */
 
 export async function getCompletedModules(courseSlug: string) {
-  // a) Get the user from firebase and check for recommended articles
-  const userId = await userIdAction();
-  if (!userId) {
+  // Get the authenticated user from Clerk
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
     return;
   }
 
-  const userRef = db.collection("users").doc(userId);
+  // Find the user in the database
+  const user = await db.query.users.findFirst({
+    where: eq(users.clerkId, clerkId),
+  });
 
-  const doc = await userRef.get();
-  if (!doc.exists) {
-    return;
-  }
-
-  const user = doc.data();
   if (!user) {
     return;
   }
 
-  if (!user.courses) {
+  // Find the course record for this user and course slug
+  const courseRecord = await db.query.courses.findFirst({
+    where: and(
+      eq(courses.userId, user.id),
+      eq(courses.courseSlug, courseSlug)
+    ),
+  });
+
+  if (!courseRecord) {
     return;
   }
 
-  const completedModules = user.courses[courseSlug];
-  if (!completedModules) {
-    return;
-  }
-
-  return completedModules;
+  // Return the resourcesCompleted object (Record<string, boolean>)
+  return courseRecord.resourcesCompleted;
 }

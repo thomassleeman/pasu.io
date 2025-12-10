@@ -1,17 +1,14 @@
 import getFormattedDate from "../getFormattedDate";
 import { getArticleData } from "../getArticlesData";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import defaultImage from "../defaultImage.jpeg";
 import StudyModal from "@/components/ui/modal/StudyModal";
 import ArticleFooter from "../_components/ArticleFooter";
 import AudioPlayer from "../_components/AudioPlayer";
 
-import MarkDown from "markdown-to-jsx";
 import Share from "@/components/ui/Share";
 import { Martel } from "next/font/google";
-import brainLogo from "@/components/design/brainLogo.png";
 import HomeButton from "@/app/_components/ui/HomeButton";
 
 //Sanity

@@ -1,6 +1,7 @@
 import React from "react";
 import Footer from "../../_components/ui/Footer";
 import { getCourseData } from "../getCoursesData";
+import SidebarNav from "../SidebarNav";
 
 import { CourseHeadNav, CourseFootNav } from "./courseNavs";
 
@@ -22,10 +23,19 @@ export default async function CourseLayout({
   const courseData = await getCourseData(courseSlug, "layout");
 
   return (
-    <section className="mx-2 mb-32">
+    <section className="mx-2">
       <CourseHeadNav course={courseData} />
 
-      {children}
+      <div className="flex">
+        <div className=" h-screen w-full overflow-y-auto">
+          {children}
+          <CourseFootNav course={courseData} />
+        </div>
+        <SidebarNav
+          sections={courseData?.resources || []}
+          courseSlug={courseSlug}
+        />
+      </div>
     </section>
   );
 

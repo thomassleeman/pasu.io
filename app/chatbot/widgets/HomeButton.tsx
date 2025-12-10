@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { HomeIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
-import { auth } from "@/firebase/auth/appConfig";
+import { useUser } from "@clerk/nextjs";
 import Spinner from "@/components/design/Spinner";
 import { HomeButtonPayload } from "@/types/chatbot";
 
@@ -15,16 +15,16 @@ export default function HomeButton({
   const { content } = payload;
 
   const router = useRouter();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = () => {
     setIsLoading(true);
 
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      router.push(`/home/${currentUser.uid}`);
+    if (user) {
+      router.push(`/home/${user.id}`);
     } else {
-      router.push("/signin");
+      router.push("/sign-in");
     }
   };
 

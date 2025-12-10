@@ -1,7 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Providers from "@/state/providers";
-import SetUser from "@/state/SetUser";
 import ErrorAlert from "@/components/ui/ErrorAlert";
 
 import Nav from "./_components/ui/nav/Nav";
@@ -40,10 +39,8 @@ export default function RootLayout({
         <Providers>
           <body className="z-50 flex h-full min-h-screen flex-col bg-amber-50/25 dark:bg-gradient-to-tr dark:from-slate-950 dark:via-slate-800 dark:to-zinc-900 dark:text-white">
             <Nav />
-            {/* <NavOld /> */}
             <NextTopLoader showSpinner={false} shadow={false} color="#047857" />
 
-            <SetUser />
             <main className="selection:bg-emerald-500/25 selection:text-emerald-900">
               {children}
               {modal}

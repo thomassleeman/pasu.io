@@ -2,7 +2,12 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/api/webhooks(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/api/webhooks(.*)",
+  "/articles",
+  "/articles/(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req, evt) => {
   const { pathname } = req.nextUrl;

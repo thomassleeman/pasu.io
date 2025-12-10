@@ -5,7 +5,7 @@ export default function BotAvatar() {
   return (
     <>
       <Image
-        alt="MindHub Logo"
+        alt="Pasu Health Logo"
         src={brainLogoCompressed}
         className="h-10 w-auto pr-4 drop-shadow-lg"
       />

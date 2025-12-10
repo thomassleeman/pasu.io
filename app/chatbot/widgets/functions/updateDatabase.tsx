@@ -1,29 +1,18 @@
 "use client";
 
-import { app } from "@firebase/auth/appConfig";
-import { doc, getFirestore, setDoc, serverTimestamp } from "firebase/firestore";
-import calculateRecommendedArticles from "./calculateRecommendedArticles";
 import { AssessmentScores } from "@/types/chatbot";
+import calculateRecommendedArticles from "./calculateRecommendedArticles";
+import { createBurnoutAssessment, createRecommendedArticles } from "@actions/userDataActions";
 
 export default async function updateDatabase(
   assessment1: AssessmentScores,
   assessment2: AssessmentScores
 ) {
   try {
-    // 1) Get user ID
-    const response = await fetch("/api/accessUserId", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const { userID } = await response.json();
-
-    // 2) Prepare your data
+    // 1) Prepare assessment data
     const assessmentsObject = { assessment1, assessment2 };
 
-    // 3) Encrypt numeric fields in the entire object
+    // 2) Encrypt numeric fields in the entire object
     const encryptRes = await fetch("/api/encryption/encryptNumber", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -38,33 +27,23 @@ export default async function updateDatabase(
     // except every numeric property is now { iv, encryptedData }
     const encryptedAssessments = await encryptRes.json();
 
-    // 4) Write to Firestore
-    const db = getFirestore(app);
-    const userRef = doc(db, "users", userID);
-    const createdAt = serverTimestamp();
-    const recommendedArticles = calculateRecommendedArticles(assessment2);
+    // 3) Calculate recommended articles
+    const recommendedArticleSlugs = calculateRecommendedArticles(assessment2);
 
-    await setDoc(
-      userRef,
-      {
-        assessments: {
-          burnoutAssessment: {
-            // We attach createdAt, but do not re-encrypt it.
-            ...encryptedAssessments,
-            createdAt,
-          },
-        },
-        articles: {
-          recommended: recommendedArticles,
-        },
-      },
-      { merge: true }
-    );
+    // 4) Save burnout assessment to database using Drizzle
+    await createBurnoutAssessment({
+      assessment1: encryptedAssessments.assessment1,
+      assessment2: encryptedAssessments.assessment2,
+    });
+
+    // 5) Save recommended articles to database
+    await createRecommendedArticles(recommendedArticleSlugs);
 
     console.log(
-      "Successfully updated Firestore with field-by-field encryption."
+      "Successfully updated database with burnout assessment and recommended articles."
     );
   } catch (error) {
     console.error("Error in updateDatabase:", (error as Error).message);
+    throw error; // Re-throw to handle in the button component
   }
 }

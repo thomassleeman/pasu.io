@@ -137,9 +137,9 @@ export default function QuizModal({
       {!open && (
         <button
           className={
-            "rounded-xl  p-3 " +
+            "mt-6 rounded-lg p-3 font-sans " +
             (allCorrect
-              ? " animate-pulse cursor-not-allowed bg-transparent text-lg text-gray-500"
+              ? " animate-pulse cursor-not-allowed bg-transparent text-gray-500"
               : "bg-emerald-600 text-white hover:bg-emerald-700 ")
           }
           disabled={allCorrect}

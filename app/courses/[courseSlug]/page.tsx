@@ -9,7 +9,6 @@ import portableTextComponents from "@/sanity/schemas/portableText/portableTextCo
 import { Article } from "@/types/sanity";
 //components
 import Share from "@/components/ui/Share";
-import SidebarNav from "../SidebarNav";
 
 //functions
 import { getResourcePathType } from "../functions";
@@ -52,142 +51,66 @@ export default async function Course({
   const headerImageUrl = headerImage ? urlForImage(headerImage) : null;
 
   return (
-    <div className="flex">
-      <div className="h-screen w-full overflow-y-auto">
-        <article className="prose prose-slate mx-auto mt-8 prose-img:rounded-xl">
-          <div className="mb-12 aspect-square h-72 w-72">
-            <Image
-              src={headerImageUrl || ""}
-              alt={title}
-              height={250}
-              width={250}
-              className="h-full w-full object-cover outline outline-offset-2 outline-emerald-700/50"
-            />
-          </div>
-          <h1 id="introduction" className="py-2 text-3xl font-thin">
-            Introduction
-          </h1>
-          <div>
-            <PortableText value={content} components={portableTextComponents} />
-          </div>
-          <div className="space-y-4 px-2 lg:px-0">
-            <h2 className="">Resources in this course</h2>
-            <div className="space-y-4">
-              {resources.map((resource: CourseResourceSanity) => {
-                const articleImageUrl = resource.headerImage
-                  ? urlForImage(resource.headerImage)
-                  : null;
-                return (
-                  <div
-                    key={resource.slug}
-                    className="not-prose flex items-center space-x-2"
-                  >
-                    {resource.type === "article" && (
-                      <Image
-                        width={50}
-                        height={50}
-                        src={articleImageUrl || defaultImage}
-                        alt={`header image for the resource ${resource.title}`}
-                        priority={true}
-                        className="h-14 w-14 rounded-md"
-                      />
-                    )}
-                    {resource.type === "selfReflectionExercise" && (
-                      <PencilIcon className="h-14 w-14 rounded-md bg-gradient-to-r from-purple-500/75 to-pink-500/75 p-1.5 text-white" />
-                    )}
-                    <div className="flex flex-col">
-                      {resource.type === "selfReflectionExercise" && (
-                        <span className="text-sm text-gray-800">
-                          Writing exercise:
-                        </span>
-                      )}
-                      <h4>{resource.title}</h4>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <GetStartedButton
-            courseSlug={courseSlug}
-            resources={resources}
-            title={title}
-          />
-        </article>
+    <article className="prose prose-slate mx-auto mt-8 prose-img:rounded-xl">
+      <div className="mb-12 aspect-square h-72 w-72">
+        <Image
+          src={headerImageUrl || ""}
+          alt={title}
+          height={250}
+          width={250}
+          className="h-full w-full object-cover outline outline-offset-2 outline-emerald-700/50"
+        />
       </div>
-      <SidebarNav sections={resources} />
-    </div>
-
-    // <article className="prose prose-slate mx-auto dark:prose-invert md:prose-lg prose-img:rounded-xl">
-    //   {/* <Share title={title} articleType="course" /> */}
-    //   {/* <div className="mb-12 aspect-square h-full w-auto">
-    //     <Image
-    //       width={1200}
-    //       height={630}
-    //       src={headerImageUrl || defaultImage}
-    //       alt={`header image for the course ${title}`}
-    //       priority={true}
-    //       className="h-full w-full object-cover"
-    //     />
-    //   </div> */}
-
-    //   <div className="mb-12 aspect-square h-72 w-72">
-    //     <Image
-    //       src={headerImageUrl || ""}
-    //       alt={title}
-    //       height={250}
-    //       width={250}
-    //       className="h-full w-full object-cover outline outline-offset-2 outline-emerald-700/50"
-    //     />
-    //   </div>
-
-    //   <div className={`${martel.className} first-line:bold`}>
-    //     <PortableText value={content} components={portableTextComponents} />
-    //   </div>
-
-    // <div className="space-y-4 px-2 lg:px-0">
-    //   <h2 className="">Resources in this course</h2>
-    //   <div className="space-y-4">
-    //     {resources.map((resource: CourseResourceSanity) => {
-    //       const articleImageUrl = resource.headerImage
-    //         ? urlForImage(resource.headerImage)
-    //         : null;
-    //       return (
-    //         <div
-    //           key={resource.slug}
-    //           className="not-prose flex items-center space-x-2"
-    //         >
-    //           {resource.type === "article" && (
-    //             <Image
-    //               width={50}
-    //               height={50}
-    //               src={articleImageUrl || defaultImage}
-    //               alt={`header image for the resource ${resource.title}`}
-    //               priority={true}
-    //               className="h-14 w-14 rounded-md"
-    //             />
-    //           )}
-    //           {resource.type === "selfReflectionExercise" && (
-    //             <PencilIcon className="h-14 w-14 rounded-md bg-gradient-to-r from-purple-500/75 to-pink-500/75 p-1.5 text-white" />
-    //           )}
-    //           <div className="flex flex-col">
-    //             {resource.type === "selfReflectionExercise" && (
-    //               <span className="text-sm text-gray-800">
-    //                 Writing exercise:
-    //               </span>
-    //             )}
-    //             <h4>{resource.title}</h4>
-    //           </div>
-    //         </div>
-    //       );
-    //     })}
-    //   </div>
-    // </div>
-    //   <GetStartedButton
-    //     courseSlug={courseSlug}
-    //     resources={resources}
-    //     title={title}
-    //   />
-    // </article>
+      <h1 id="introduction" className="py-2 text-3xl font-thin">
+        Introduction
+      </h1>
+      <div>
+        <PortableText value={content} components={portableTextComponents} />
+      </div>
+      <div className="space-y-4 px-2 lg:px-0">
+        <h2 className="">Resources in this course</h2>
+        <div className="space-y-4">
+          {resources.map((resource: CourseResourceSanity) => {
+            const articleImageUrl = resource.headerImage
+              ? urlForImage(resource.headerImage)
+              : null;
+            return (
+              <div
+                id={resource.slug}
+                key={resource.slug}
+                className="not-prose flex items-center space-x-2 scroll-mt-8"
+              >
+                {resource.type === "article" && (
+                  <Image
+                    width={50}
+                    height={50}
+                    src={articleImageUrl || defaultImage}
+                    alt={`header image for the resource ${resource.title}`}
+                    priority={true}
+                    className="h-14 w-14 rounded-md"
+                  />
+                )}
+                {resource.type === "selfReflectionExercise" && (
+                  <PencilIcon className="h-14 w-14 rounded-md bg-gradient-to-r from-purple-500/75 to-pink-500/75 p-1.5 text-white" />
+                )}
+                <div className="flex flex-col">
+                  {resource.type === "selfReflectionExercise" && (
+                    <span className="text-sm text-gray-800">
+                      Writing exercise:
+                    </span>
+                  )}
+                  <h4>{resource.title}</h4>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <GetStartedButton
+        courseSlug={courseSlug}
+        resources={resources}
+        title={title}
+      />
+    </article>
   );
 }

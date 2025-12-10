@@ -54,18 +54,23 @@ export default function GetStartedButton({
 
         // Merge new resources with existing ones without overwriting completed statuses
         const resourcesCompleted: Record<string, boolean> = { ...existingResourcesCompleted };
+        let hasNewResources = false;
+
         resources.forEach((resource) => {
           if (!(resource.slug in resourcesCompleted)) {
             resourcesCompleted[resource.slug] = false;
+            hasNewResources = true;
           }
         });
 
-        // Update the user's courses data in the database
-        await updateCourseProgress({
-          courseSlug,
-          courseName: title,
-          resourcesCompleted,
-        });
+        // Only update the database if there are new resources
+        if (hasNewResources) {
+          await updateCourseProgress({
+            courseSlug,
+            courseName: title,
+            resourcesCompleted,
+          });
+        }
 
         // Determine the first uncompleted resource
         let firstUncompleted = null;

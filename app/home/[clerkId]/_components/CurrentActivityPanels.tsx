@@ -15,8 +15,8 @@ export default function CurrentActivityPanels({
       </h2>
       <div className="space-y-8">
         <MyCoursesPanel user={user} />
-        <div className="border-t border-gray-300" />
-        <MyExercisesPanel user={user} />
+        {/* <div className="border-t border-gray-300" />
+        <MyExercisesPanel user={user} /> */}
       </div>
     </section>
   );

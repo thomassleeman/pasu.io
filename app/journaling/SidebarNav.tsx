@@ -45,8 +45,10 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
   }));
 
   const NavContent = () => (
-    <nav className="space-y-4">
-      <h2 className="text-sm font-semibold text-emerald-700">Journal Prompts</h2>
+    <nav className="space-y-4 font-mono">
+      <h2 className="text-sm font-semibold text-emerald-700">
+        Journal Prompts
+      </h2>
       <ul className="space-y-3">
         {sidebarSections.map((section) => (
           <li key={section.id}>

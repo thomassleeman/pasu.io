@@ -5,12 +5,6 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "firebasestorage.googleapis.com",
-        port: "",
-        pathname: "/v0/b/burnout-project.appspot.com/o/**",
-      },
-      {
-        protocol: "https",
         hostname: "cdn.sanity.io",
       },
       {

@@ -151,8 +151,9 @@ export default function ContentCarousel({
                 formattedDate = "";
               }
               return (
-                <article
+                <Link
                   key={id}
+                  href={`/articles/${slug}`}
                   className="relative isolate flex h-72 flex-none basis-64 snap-center snap-always flex-col justify-end overflow-hidden rounded-xl px-4 pb-4 md:snap-none"
                 >
                   <Image
@@ -190,14 +191,14 @@ export default function ContentCarousel({
                     </div>
                   </div>
                   <h3 className="mt-3 cursor-pointer font-serif text-xl leading-6 text-white hover:underline">
-                    <Link
-                      href={`/articles/${slug}`}
+                    <span
+                      // href={`/articles/${slug}`}
                       onClick={() => setShowSearchResults(false)}
                     >
                       {title}
-                    </Link>
+                    </span>
                   </h3>
-                </article>
+                </Link>
               );
             })}
           </div>

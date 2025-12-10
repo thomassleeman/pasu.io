@@ -24,7 +24,7 @@ export default async function SelfReflectionExercise({
 
   return (
     <>
-      <section className="prose prose-slate mx-auto px-4 dark:prose-invert md:prose-lg sm:px-0">
+      <section className="prose prose-slate mx-auto mt-12 px-4 dark:prose-invert md:prose-lg sm:px-0">
         <h1 className="">{title}</h1>
 
         <div className="">
